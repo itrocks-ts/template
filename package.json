@@ -33,5 +33,5 @@
 		"build": "tsc -p tsconfig.json",
 		"test": "jest"
 	},
-	"version": "0.0.1"
+	"version": "0.0.2"
 }
