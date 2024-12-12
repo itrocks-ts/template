@@ -1,0 +1,37 @@
+{
+	"author": {
+		"name": "Baptiste Pillot",
+		"email": "baptiste@pillot.fr"
+	},
+	"dependencies": {
+		"@itrocks/app-dir": "latest",
+		"@itrocks/rename": "latest",
+		"@itrocks/sorted-array": "latest"
+	},
+	"description": "The W3C-valid, browser-previewable, concise, and fast HTML template engine that enables delimiter-less translations",
+	"devDependencies": {
+		"@types/jest": "^29.5.14",
+		"@types/node": "^22.9",
+		"jest": "^29.7.0",
+		"ts-jest": "^29.2",
+		"typescript": "~5.6"
+	},
+	"files": [
+		"LICENSE",
+		"README.md",
+		"template.d.ts",
+		"template.js"
+	],
+	"keywords": [
+		"it.rocks"
+	],
+	"license": "LGPL-3.0-or-later",
+	"main": "./template.js",
+	"name": "@itrocks/template",
+	"repository": "https://github.com/itrocks-ts/template",
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"test": "jest"
+	},
+	"version": "0.0.1"
+}
