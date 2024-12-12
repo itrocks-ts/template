@@ -23,7 +23,22 @@
 		"template.js"
 	],
 	"keywords": [
-		"it.rocks"
+		"browser",
+		"dynamic",
+		"engine",
+		"html",
+		"fast",
+		"i18n",
+		"internationalization",
+		"it.rocks",
+		"lightweight",
+		"no-escape",
+		"preview",
+		"standards",
+		"template",
+		"valid",
+		"validation",
+		"W3C"
 	],
 	"license": "LGPL-3.0-or-later",
 	"main": "./template.js",
@@ -33,5 +48,5 @@
 		"build": "tsc -p tsconfig.json",
 		"test": "jest"
 	},
-	"version": "0.0.2"
+	"version": "0.0.3"
 }
