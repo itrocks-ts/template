@@ -20,15 +20,14 @@
 		"node": ">=18"
 	},
 	"exports": {
-		"import": "./template.js",
+		"import": "./esm/template.js",
 		"require": "./cjs/template.js"
 	},
 	"files": [
-		"/LICENSE",
-		"/README.md",
-		"/cjs/*.js",
-		"/template.d.ts",
-		"/template.js"
+		"LICENSE",
+		"README.md",
+		"*/*.d.ts",
+		"*/*.js"
 	],
 	"keywords": [
 		"browser",
@@ -57,6 +56,6 @@
 		"build:esm": "tsc -p tsconfig.esm.json",
 		"test": "jest"
 	},
-	"types": "./template.d.ts",
-	"version": "0.0.7"
+	"types": "./esm/template.d.ts",
+	"version": "0.0.8"
 }
