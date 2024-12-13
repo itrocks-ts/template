@@ -17,13 +17,14 @@ npm i @itrocks/template
 ## Basic Usage
 
 ```ts
-console.log(
-	await new Template({
-		users: [
-			{ age: 10, name: 'kid' },
-			{ age: 20, name: 'old-timer' }
-		]
-	})
+import '@itrocks/template'
+
+new Template({
+	users: [
+		{ age: 10, name: 'kid' },
+		{ age: 20, name: 'old-timer' }
+	]
+})
 	.parseBuffer(`
 		<ul>
 			<!--users-->
@@ -31,7 +32,7 @@ console.log(
 			<!--end-->
 		</ul>
 	`)
-)
+	.then(console.log)
 ```
 
 Result:
@@ -66,7 +67,8 @@ The `template.html` template file will validate W3C and display well in your bro
 
 Since the engine supports asynchronous operations (e.g., reading files, calling async functions, resolving async data),
 parsing returns a [Promise](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise)
-that you should handle with [await](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/await).
+that you should handle with [await](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/await)
+or [then](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise/then).
 
 This library is fully compatible with both ECMAScript modules (import) and CommonJS (require),
 adapting seamlessly to your project's module system.
@@ -195,9 +197,7 @@ if not properly spaced.
 
 Wrap a property in `{}` to display its value:
 ```ts
-console.log(
-	await new Template({ var: 15 }).parseBuffer('<span>{var}</span>')
-)
+new Template({ var: 15 }).parseBuffer('<span>{var}</span>').then(console.log)
 ```
 Result:
 ```html
@@ -208,9 +208,7 @@ Result:
 
 If a context property is a function, it will be called and its return value displayed:
 ```ts
-console.log(
-	await new Template({ var: () => 15 }).parseBuffer('<span>{var}</span>')
-)
+new Template({ var: () => 15 }).parseBuffer('<span>{var}</span>').then(console.log)
 ```
 Result:
 ```html
@@ -221,7 +219,7 @@ Result:
 
 Use `{.}` to reference the current data context:
 ```ts
-console.log(await new Template(15).parseBuffer('<span>{.}</span>'))
+new Template(15).parseBuffer('<span>{.}</span>').then(console.log)
 ```
 Result:
 ```html
@@ -264,17 +262,15 @@ Result on data `{ user: { age: 10, name: 'kid' } }`:
 
 You can use dot notation within `{your.expression}`:
 ```ts
-console.log(
-	await new Template({ user: { age: 10, name: 'kid' } })
-		.parseBuffer('<span>{user.name} is {user.age} years old</span>')
-)
+new Template({ user: { age: 10, name: 'kid' } })
+	.parseBuffer('<span>{user.name} is {user.age} years old</span>')
+	.then(console.log)
 ```
 Or use a block to avoid repeating:
 ```ts
-console.log(
-	await new Template({ user: { age: 10, name: 'kid' } })
-		.parseBuffer('<span><!--user-->{name} is {age} years old<!--end--></span>')
-)
+new Template({ user: { age: 10, name: 'kid' } })
+	.parseBuffer('<span><!--user-->{name} is {age} years old<!--end--></span>')
+	.then(console.log)
 ```
 Both produce:
 ```html
@@ -285,10 +281,9 @@ Both produce:
 
 Use `*` to iterate over all values of an object:
 ```ts
-console.log(
-	await new Template({ object: { first: 'kid', next: 'old-timer' } })
-		.parseBuffer('<ul><!--object.*--><li>{.}<!--end--></ul>')
-)
+new Template({ object: { first: 'kid', next: 'old-timer' } })
+	.parseBuffer('<ul><!--object.*--><li>{.}<!--end--></ul>')
+	.then(console.log)
 ```
 Result:
 ```html
@@ -298,10 +293,9 @@ Result:
 ### Iterating Over Arrays
 
 ```ts
-console.log(
-	await new Template({ users: ['kid', 'old-timer'] })
-		.parseBuffer('<ul><!--users--><li>{.}</li><!--end--></ul>')
-)
+new Template({ users: ['kid', 'old-timer'] })
+	.parseBuffer('<ul><!--users--><li>{.}</li><!--end--></ul>')
+	.then(console.log)
 ```
 Result:
 ```html
@@ -311,13 +305,12 @@ Result:
 ### Iterating Over Arrays of Objects
 
 ```ts
-console.log(
-	await new Template({
-		users: [
-			{ age: 10, name: 'kid' },
-			{ age: 20, name: 'old-timer' }
-		]
-	})
+await new Template({
+	users: [
+		{ age: 10, name: 'kid' },
+		{ age: 20, name: 'old-timer' }
+	]
+})
 	.parseBuffer(`
 		<ul>
 			<!--users-->
@@ -325,7 +318,7 @@ console.log(
 			<!--end-->
 		</ul>
 	`)
-)
+	.then(console.log)
 ```
 Result:
 ```html
@@ -339,8 +332,7 @@ Result:
 
 Use `-` to go back up one level in the data context:
 ```ts
-console.log(
-	await new Template({ name: 'Eddie', data: { age: 30, status: 'well' } })
+new Template({ name: 'Eddie', data: { age: 30, status: 'well' } })
 	.parseBuffer(`
 		<!--data-->
 		<ol>
@@ -350,7 +342,7 @@ console.log(
 		</ol>
 		<!--end-->
 	`)
-)
+	.then(console.log)
 ```
 Result:
 ```html
@@ -374,10 +366,9 @@ If a descendant property or method isn't found on the current data object,
 the engine attempts to use the [Str](https://www.npmjs.com/package/@itrocks/rename#str-class) helper object,
 which provides string formatting functions. If no matching function is found, an error is thrown.
 ```ts
-console.log(
-	await new Template({ name: 'EDITH' })
-		.parseBuffer('<span>{name.lcFirst}</span>')
-)
+new Template({ name: 'EDITH' })
+	.parseBuffer('<span>{name.lcFirst}</span>')
+	.then(console.log)
 ```
 Result:
 ```html
@@ -451,13 +442,12 @@ class MyTemplate extends Template
 
 Using this class:
 ```ts
-console.log(
-	await new MyTemplate({ name: 'Nick' })
-		.parseBuffer(`
-			<h2>What is my name</h2>
-			<p>My name is {name}</p>
-		`)
-)
+new MyTemplate({ name: 'Nick' })
+	.parseBuffer(`
+		<h2>What is my name</h2>
+		<p>My name is {name}</p>
+	`)
+	.then(console.log)
 ```
 Results in:
 ```html
@@ -468,13 +458,12 @@ Results in:
 [Inline HTML elements](https://developer.mozilla.org/docs/Web/HTML/Element#inline_text_semantics)
 are considered part of the phrase, so their text is also translated:
 ```ts
-console.log(
-	await new MyTemplate({ name: 'Nick' })
-		.parseBuffer(`
-			<h2>What is my name</h2>
-			<p>My <span>name</span> is {name}</p>
-		`)
-)
+new MyTemplate({ name: 'Nick' })
+	.parseBuffer(`
+		<h2>What is my name</h2>
+		<p>My <span>name</span> is {name}</p>
+	`)
+	.then(console.log)
 ```
 Results in:
 ```html
@@ -592,7 +581,7 @@ Beyond simply inserting the content of another template, you can:
 
 Example:
 ```ts
-await new Template({ name: 'Nick' })
+const parsed = await new Template({ name: 'Nick' })
 	.parseFile('child-template.html', 'container-template.html')
 ```
 
@@ -610,7 +599,7 @@ to print out parsing details to the console. It's extremely useful for diagnosin
 ```ts
 const template = new Template(data)
 template.debugEvents()
-await template.parseBuffer(yourTemplateString)
+const parsed = await template.parseBuffer(yourTemplateString)
 ```
 As the template is parsed, the console will show events like:
 ```
