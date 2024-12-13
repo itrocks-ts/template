@@ -1,4 +1,4 @@
-import Template from '../template'
+import Template from '../cjs/template'
 
 const template     = new Template
 template.doLiteral = false

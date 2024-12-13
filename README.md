@@ -18,7 +18,7 @@ npm i @itrocks/template
 
 ```ts
 console.log(
-	new Template({
+	await new Template({
 		users: [
 			{ age: 10, name: 'kid' },
 			{ age: 20, name: 'old-timer' }
@@ -67,6 +67,9 @@ The `template.html` template file will validate W3C and display well in your bro
 Since the engine supports asynchronous operations (e.g., reading files, calling async functions, resolving async data),
 parsing returns a [Promise](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise)
 that you should handle with [await](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/await).
+
+This library is fully compatible with both ECMAScript modules (import) and CommonJS (require),
+adapting seamlessly to your project's module system.
 
 ## Key features
 
@@ -193,7 +196,7 @@ if not properly spaced.
 Wrap a property in `{}` to display its value:
 ```ts
 console.log(
-	new Template({ var: 15 }).parseBuffer('<span>{var}</span>')
+	await new Template({ var: 15 }).parseBuffer('<span>{var}</span>')
 )
 ```
 Result:
@@ -206,7 +209,7 @@ Result:
 If a context property is a function, it will be called and its return value displayed:
 ```ts
 console.log(
-	new Template({ var: () => 15 }).parseBuffer('<span>{var}</span>')
+	await new Template({ var: () => 15 }).parseBuffer('<span>{var}</span>')
 )
 ```
 Result:
@@ -218,7 +221,7 @@ Result:
 
 Use `{.}` to reference the current data context:
 ```ts
-console.log(new Template(15).parseBuffer('<span>{.}</span>'))
+console.log(await new Template(15).parseBuffer('<span>{.}</span>'))
 ```
 Result:
 ```html
@@ -262,14 +265,14 @@ Result on data `{ user: { age: 10, name: 'kid' } }`:
 You can use dot notation within `{your.expression}`:
 ```ts
 console.log(
-	new Template({ user: { age: 10, name: 'kid' } })
+	await new Template({ user: { age: 10, name: 'kid' } })
 		.parseBuffer('<span>{user.name} is {user.age} years old</span>')
 )
 ```
 Or use a block to avoid repeating:
 ```ts
 console.log(
-	new Template({ user: { age: 10, name: 'kid' } })
+	await new Template({ user: { age: 10, name: 'kid' } })
 		.parseBuffer('<span><!--user-->{name} is {age} years old<!--end--></span>')
 )
 ```
@@ -283,7 +286,7 @@ Both produce:
 Use `*` to iterate over all values of an object:
 ```ts
 console.log(
-	new Template({ object: { first: 'kid', next: 'old-timer' } })
+	await new Template({ object: { first: 'kid', next: 'old-timer' } })
 		.parseBuffer('<ul><!--object.*--><li>{.}<!--end--></ul>')
 )
 ```
@@ -296,7 +299,7 @@ Result:
 
 ```ts
 console.log(
-	new Template({ users: ['kid', 'old-timer'] })
+	await new Template({ users: ['kid', 'old-timer'] })
 		.parseBuffer('<ul><!--users--><li>{.}</li><!--end--></ul>')
 )
 ```
@@ -309,7 +312,7 @@ Result:
 
 ```ts
 console.log(
-	new Template({
+	await new Template({
 		users: [
 			{ age: 10, name: 'kid' },
 			{ age: 20, name: 'old-timer' }
@@ -337,7 +340,7 @@ Result:
 Use `-` to go back up one level in the data context:
 ```ts
 console.log(
-	new Template({ name: 'Eddie', data: { age: 30, status: 'well' } })
+	await new Template({ name: 'Eddie', data: { age: 30, status: 'well' } })
 	.parseBuffer(`
 		<!--data-->
 		<ol>
@@ -372,7 +375,7 @@ the engine attempts to use the [Str](https://www.npmjs.com/package/@itrocks/rena
 which provides string formatting functions. If no matching function is found, an error is thrown.
 ```ts
 console.log(
-	new Template({ name: 'EDITH' })
+	await new Template({ name: 'EDITH' })
 		.parseBuffer('<span>{name.lcFirst}</span>')
 )
 ```
@@ -449,11 +452,11 @@ class MyTemplate extends Template
 Using this class:
 ```ts
 console.log(
-	new MyTemplate({ name: 'Nick' })
-	.parseBuffer(`
-		<h2>What is my name</h2>
-		<p>My name is {name}</p>
-	`)
+	await new MyTemplate({ name: 'Nick' })
+		.parseBuffer(`
+			<h2>What is my name</h2>
+			<p>My name is {name}</p>
+		`)
 )
 ```
 Results in:
@@ -466,11 +469,11 @@ Results in:
 are considered part of the phrase, so their text is also translated:
 ```ts
 console.log(
-new MyTemplate({ name: 'Nick' })
-	.parseBuffer(`
-		<h2>What is my name</h2>
-		<p>My <span>name</span> is {name}</p>
-	`)
+	await new MyTemplate({ name: 'Nick' })
+		.parseBuffer(`
+			<h2>What is my name</h2>
+			<p>My <span>name</span> is {name}</p>
+		`)
 )
 ```
 Results in:

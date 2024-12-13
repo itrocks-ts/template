@@ -3,4 +3,5 @@
 /package-lock.json
 *.d.ts
 *.js
+*.map
 !jest.config.js

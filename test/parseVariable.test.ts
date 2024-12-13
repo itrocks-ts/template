@@ -1,4 +1,4 @@
-import Template from '../template'
+import Template from '../cjs/template'
 
 describe('parseVariable', () => {
 	const template = new Template

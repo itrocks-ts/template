@@ -1,5 +1,7 @@
 {
 	"compilerOptions": {
+		"declarationMap": true,
+		"sourceMap": true,
 		"module": "CommonJS",
 		"outDir": "./cjs"
 	},
