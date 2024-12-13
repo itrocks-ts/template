@@ -372,13 +372,13 @@ the engine attempts to use the [Str](https://www.npmjs.com/package/@itrocks/rena
 which provides string formatting functions. If no matching function is found, an error is thrown.
 ```ts
 console.log(
-	new Template({ name: 'EDDIT' })
+	new Template({ name: 'EDITH' })
 		.parseBuffer('<span>{name.lcFirst}</span>')
 )
 ```
 Result:
 ```html
-<span>eDDIE</span>
+<span>eDITH</span>
 ```
 
 ### Including Another Template
@@ -467,10 +467,10 @@ are considered part of the phrase, so their text is also translated:
 ```ts
 console.log(
 new MyTemplate({ name: 'Nick' })
-.parseBuffer(`
-      <h2>What is my name</h2>
-      <p>My <span>name</span> is {name}</p>
-    `)
+	.parseBuffer(`
+		<h2>What is my name</h2>
+		<p>My <span>name</span> is {name}</p>
+	`)
 )
 ```
 Results in:
@@ -530,11 +530,11 @@ fetches data from an external API or applies a custom transformation.
 
 ```ts
 const myParser: VariableParser = [
-  '@', 
-  (variable, data) => {
-    const key = variable.substring(1) // remove '@'
-    return fetchFromCustomDataSource(key) 
-  }
+	'@',
+	(variable, data) => {
+		const key = variable.substring(1) // remove '@'
+		return fetchFromCustomDataSource(key)
+	}
 ]
 template.parsers.push(myParser)
 ```
