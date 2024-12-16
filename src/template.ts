@@ -478,8 +478,8 @@ export default class Template
 				if ((char === '-') && (source[index] === '-')) {
 					index ++
 					if (
-						!/[a-z0-9@%{]/i.test(source[index])
-						|| !this.doExpression
+						!this.doExpression
+						|| !this.startsExpression(source[index])
 						|| ((source[index] === 'B') && this.included && (source.substring(index, index + 8) === 'BEGIN-->'))
 						|| ((source[index] === 'E') && this.included && (source.substring(index, index + 6) === 'END-->'))
 					) {
