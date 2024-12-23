@@ -889,7 +889,7 @@ export default class Template
 
 	startsExpression(char: string, open = '{', close = '}')
 	{
-		return RegExp('[a-z0-9"*.?\'' + open + close + '-' + this.prefixes + ']', 'i').test(char)
+		return RegExp('[a-z0-9"*.?\'' + open + close + this.prefixes + '-]', 'i').test(char)
 	}
 
 	trimEndLine(string: string)
