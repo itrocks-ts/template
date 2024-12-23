@@ -6,45 +6,45 @@ import { normalize, sep } from 'node:path'
 
 type BlockStack = { blockStart: number, collection: any[], data: any, iteration: number, iterations: number }[]
 
-let blockBack:  number
-let blockStack: BlockStack
-
-let doHeadLinks = false
-
-let index:       number
-let length:      number
-let source:      string
-let start:       number
-let tagName:     string
-let tagStack:    { tagName: string, inLiteral: boolean }[]
-let target:      string
-let targetStack: string[]
-
-let lockLiteral:      boolean
-let literalPartStack: string[][]
-let literalParts:     string[]
-let inLiteral:        boolean
+export type VariableParser = [parser: string, (variable: string, data: any) => any]
 
 export const frontScripts = new SortedArray<string>()
 frontScripts.distinct = true
 
-let doneLinks = new SortedArray<string>()
-let headLinks = new SortedArray<string>()
-let headTitle: string | undefined = undefined
-doneLinks.distinct = true
-headLinks.distinct = true
-
-export type VariableParser = [parser: string, (variable: string, data: any) => any]
-
 export { Template }
 export default class Template
 {
-	doExpression = true
-	doLiteral    = false
+	// block stack
+	blockBack = 0
+	blockStack: BlockStack
 
+	// parser
+	doExpression = true
+	index        = 0
+	length       = 0
+	source       = ''
+	start        = 0
+	tagName      = ''
+	tagStack:    { tagName: string, inLiteral: boolean }[] = []
+	target       = ''
+	targetStack:   string[] = []
+
+	// literal
+	doLiteral       = false
+	inLiteral       = false
+	literalParts:     string[]   = []
+	literalPartStack: string[][] = []
+	lockLiteral     = false
+
+	// html head
+	doHeadLinks = false
+	doneLinks   = new SortedArray<string>()
+	headLinks   = new SortedArray<string>()
+	headTitle?:   string
+
+	// file
 	fileName?: string
 	filePath?: string
-
 	included = false
 
 	// Inline elements are replaced by $1 when in literal.
@@ -71,27 +71,31 @@ export default class Template
 		'td', 'template', 'text', 'textarea', 'textpath', 'th', 'time', 'title', 'tspan', 'u', 'wbr'
 	)
 
-	onAttribute?: ((name: string, value: string) => void)
-	onTagOpen?:   ((name: string) => void)
-	onTagOpened?: ((name: string) => void)
-	onTagClose?:  ((name: string) => void)
-
-	parsers:  VariableParser[] = []
-	prefixes: string
-
 	// These elements have no closing tag.
 	unclosingTags = new SortedArray(
 		'area', 'base', 'basefont', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param',
 		'source', 'track'
 	)
 
+	// Event hooks
+	onAttribute?: (name: string, value: string) => void
+	onTagOpen?:   (name: string) => void
+	onTagOpened?: (name: string) => void
+	onTagClose?:  (name: string) => void
+
+	// Additional parsers
+	parsers:   VariableParser[] = []
+	prefixes = ''
+
 	constructor(public data?: any, public containerData?: any)
 	{
-		blockStack = []
+		this.doneLinks.distinct = true
+		this.headLinks.distinct = true
+
+		this.blockStack = []
 		if (containerData) {
-			blockStack.push({ blockStart: 0, collection: [], data: containerData, iteration: 0, iterations: 1 })
+			this.blockStack.push({ blockStart: 0, collection: [], data: containerData, iteration: 0, iterations: 1 })
 		}
-		this.prefixes = this.parsers.map(([prefix]) => prefix).join('')
 	}
 
 	applyLiterals(text: string, parts: string[] = [])
@@ -101,20 +105,20 @@ export default class Template
 
 	closeTag(shouldInLiteral: boolean, targetIndex: number)
 	{
-		shouldInLiteral ||= inLiteral;
-		({ tagName, inLiteral } = tagStack.pop() ?? { tagName: '', inLiteral: false })
-		if (this.onTagClose) this.onTagClose.call(this, tagName)
-		if ((tagName[0] === 'a') && (tagName === 'address')) {
-			lockLiteral = false
+		shouldInLiteral ||= this.inLiteral;
+		Object.assign(this, this.tagStack.pop() ?? { tagName: '', inLiteral: false })
+		if (this.onTagClose) this.onTagClose.call(this, this.tagName)
+		if ((this.tagName[0] === 'a') && (this.tagName === 'address')) {
+			this.lockLiteral = false
 		}
-		if (inLiteral && this.inlineElements.includes(tagName)) {
-			if (this.literalElements.includes(tagName)) {
+		if (this.inLiteral && this.inlineElements.includes(this.tagName)) {
+			if (this.literalElements.includes(this.tagName)) {
 				this.literalTarget(targetIndex)
 			}
-			literalParts = literalPartStack.pop() as string[]
-			literalParts.push(target + source.substring(start, index))
-			start           = index
-			target          = targetStack.pop() + '$' + literalParts.length
+			this.literalParts = this.literalPartStack.pop() as string[]
+			this.literalParts.push(this.target + this.source.substring(this.start, this.index))
+			this.start      = this.index
+			this.target     = this.targetStack.pop() + '$' + this.literalParts.length
 			shouldInLiteral = false
 		}
 		return shouldInLiteral
@@ -146,65 +150,69 @@ export default class Template
 
 	getCleanContext()
 	{
-		const doneLinks = new SortedArray<string>
-		const headLinks = new SortedArray<string>
+		const doneLinks    = new SortedArray<string>
+		const headLinks    = new SortedArray<string>
 		doneLinks.distinct = true
 		headLinks.distinct = true
 		return {
 			doHeadLinks:      false,
 			doneLinks:        doneLinks,
 			headLinks:        headLinks,
-			index:            length,
-			length:           source.length,
-			source:           source,
-			start:            length,
-			target:           target,
-			targetStack:      [],
+			index:            this.length,
+			inLiteral:        this.doLiteral,
+			length:           this.source.length,
 			literalPartStack: [],
 			literalParts:     [],
-			inLiteral:        this.doLiteral
+			source:           this.source,
+			start:            this.length,
+			target:           this.target,
+			targetStack:      []
 		}
 	}
 
 	getPosition()
 	{
-		return { index, start, target }
+		return { index: this.index, start: this.start, target: this.target }
 	}
 
 	getContext()
 	{
 		return {
-			doHeadLinks, doneLinks, headLinks, index, length, source, start, target, targetStack,
-			literalPartStack, literalParts, inLiteral
+			doHeadLinks:      this.doHeadLinks,
+			doneLinks:        this.doneLinks,
+			headLinks:        this.headLinks,
+			index:            this.index,
+			inLiteral:        this.inLiteral,
+			length:           this.length,
+			literalParts:     this.literalParts,
+			literalPartStack: this.literalPartStack,
+			source:           this.source,
+			start:            this.start,
+			target:           this.target,
+			targetStack:      this.targetStack,
 		}
 	}
 
 	async include(path: string, data: any)
 	{
-		const back = {
-			doHeadLinks, index, length, source, start, tagName, tagStack, target, targetStack,
-			literalParts, literalPartStack, inLiteral, lockLiteral
-		}
-		doHeadLinks = true
-
-		const template    = new (Object.getPrototypeOf(this).constructor)(data, blockStack[0]?.data)
-		template.included = true
+		const template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data)
 
 		template.doExpression = this.doExpression
+		template.doHeadLinks  = true
 		template.doLiteral    = this.doLiteral
+		template.included     = true
 		template.onAttribute  = this.onAttribute
 		template.onTagClose   = this.onTagClose
 		template.onTagOpen    = this.onTagOpen
 		template.onTagOpened  = this.onTagOpened
 		template.parsers      = this.parsers
+		template.prefixes     = this.prefixes
 
 		const parsed = await template.parseFile(
-			((path[0] === sep) || (path[1] === ':')) ? path : (this.filePath + sep + path));
-
-		({
-			doHeadLinks, index, length, source, start, tagName, tagStack, target, targetStack,
-			literalParts, literalPartStack, inLiteral, lockLiteral
-		} = back)
+			((path[0] === sep) || (path[1] === ':'))
+				? path
+				: (this.filePath + sep + path)
+		)
 
 		return parsed.substring(parsed.indexOf('<!--BEGIN-->') + 12, parsed.indexOf('<!--END-->'))
 	}
@@ -219,160 +227,163 @@ export default class Template
 			&& context.headLinks.distinct      === clean.headLinks.distinct
 			&& context.headLinks.length        === clean.headLinks.length
 			&& context.index                   === clean.index
+			&& context.inLiteral               === clean.inLiteral
+			&& context.literalPartStack.length === clean.literalPartStack.length
+			&& context.literalParts.length     === clean.literalParts.length
 			&& context.length                  === clean.length
 			&& context.start                   === clean.start
 			&& context.targetStack.length      === clean.targetStack.length
-			&& context.literalPartStack.length === clean.literalPartStack.length
-			&& context.literalParts.length     === clean.literalParts.length
-			&& context.inLiteral               === clean.inLiteral
 	}
 
 	literalTarget(index: number, isTitle = false)
 	{
 		let combined: string
-		if (literalParts.length) {
-			target      += source.substring(start, index)
-			combined     = this.combineLiterals(target, literalParts)
-			target       = (targetStack.pop() ?? '') + combined
-			literalParts = []
+		if (this.literalParts.length) {
+			this.target      += this.source.substring(this.start, index)
+			combined          = this.combineLiterals(this.target, this.literalParts)
+			this.target       = (this.targetStack.pop() ?? '') + combined
+			this.literalParts = []
 		}
 		else {
-			combined = this.combineLiterals(source.substring(start, index))
-			target  += combined
+			combined     = this.combineLiterals(this.source.substring(this.start, index))
+			this.target += combined
 		}
-		if (isTitle && doHeadLinks) {
-			headTitle = combined
+		if (isTitle && this.doHeadLinks) {
+			this.headTitle = combined
 		}
-		start = index
+		this.start = index
 	}
 
 	async parseBuffer(buffer: string)
 	{
+		this.prefixes = this.parsers.map(([prefix]) => prefix).join('')
 		this.setSource(buffer)
 		await this.parseVars()
-		if (doHeadLinks) {
-			return target
+		if (this.doHeadLinks) {
+			return this.target
 		}
-		if (headLinks.length) {
-			const position = target.lastIndexOf('>', target.indexOf('</head>')) + 1
-			target    = target.slice(0, position) + '\n\t' + headLinks.join('\n\t') + target.slice(position)
-			doneLinks = new SortedArray<string>
-			doneLinks.distinct = true
-			headLinks = new SortedArray<string>
-			headLinks.distinct = true
+		if (this.headLinks.length) {
+			const position = this.target.lastIndexOf('>', this.target.indexOf('</head>')) + 1
+			this.target = this.target.slice(0, position) + '\n\t' + this.headLinks.join('\n\t') + this.target.slice(position)
+			this.doneLinks = new SortedArray<string>
+			this.headLinks = new SortedArray<string>
+			this.doneLinks.distinct = true
+			this.headLinks.distinct = true
 		}
-		if (headTitle && !this.included) {
-			const position = target.indexOf('>', target.indexOf('<title') + 6) + 1
-			target = target.slice(0, position) + headTitle + target.slice(target.indexOf('</title>', position))
+		if (this.headTitle && !this.included) {
+			const position = this.target.indexOf('>', this.target.indexOf('<title') + 6) + 1
+			this.target    = this.target.slice(0, position)
+				+ this.headTitle
+				+ this.target.slice(this.target.indexOf('</title>', position))
 		}
-		return target
+		return this.target
 	}
 
 	async parseExpression(data: any, close: string, finalClose = '')
 	{
-		const indexOut = index
-		let   open     = source[index]
+		const indexOut = this.index
+		let   open     = this.source[this.index]
 
-		if (inLiteral && !literalParts.length) {
-			targetStack.push(target)
-			target = ''
+		if (this.inLiteral && !this.literalParts.length) {
+			this.targetStack.push(this.target)
+			this.target = ''
 		}
 
 		if (open === '<') {
-			index += 3
-			open   = '{'
+			this.index += 3
+			open = '{'
 		}
 
-		index ++
-		const firstChar = source[index]
-		if ((index >= length) || !this.startsExpression(firstChar, open, close)) {
+		this.index ++
+		const firstChar = this.source[this.index]
+		if ((this.index >= this.length) || !this.startsExpression(firstChar, open, close)) {
 			return
 		}
 
 		let   conditional = (firstChar === '?')
 		const finalChar   = finalClose.length ? finalClose[0] : ''
-		let   stackPos    = targetStack.length
+		let   stackPos    = this.targetStack.length
 		if (conditional) {
-			index ++
+			this.index ++
 		}
-		targetStack.push(target + source.substring(start, indexOut))
-		start  = index
-		target = ''
+		this.targetStack.push(this.target + this.source.substring(this.start, indexOut))
+		this.start  = this.index
+		this.target = ''
 
-		while (index < length) {
-			const char = source[index]
+		while (this.index < this.length) {
+			const char = this.source[this.index]
 
 			if (char === open) {
-				targetStack.push(target + source.substring(start, index))
-				index  ++
-				start  = index
-				target = ''
+				this.targetStack.push(this.target + this.source.substring(this.start, this.index))
+				this.index  ++
+				this.start  = this.index
+				this.target = ''
 				continue
 			}
 
 			if (
 				(char === close)
-				|| ((char === finalChar) && (source.substring(index, index + finalClose.length) === finalClose))
+				|| ((char === finalChar) && (this.source.substring(this.index, this.index + finalClose.length) === finalClose))
 			) {
 				let minus = 0
-				if (source[index - 1] === '?') {
+				if (this.source[this.index - 1] === '?') {
 					conditional = true
-					minus = 1
+					minus       = 1
 				}
-				const expression = target + source.substring(start, index - minus)
-				const lastTarget = targetStack.pop() as string
+				const expression = this.target + this.source.substring(this.start, this.index - minus)
+				const lastTarget = this.targetStack.pop() as string
 				const parsed     = await this.parsePath(expression, data)
-				index += (char === close) ? 1 : finalClose.length
-				start  = index
-				target = ''
-				if (char === finalChar) while (targetStack.length > stackPos) {
-					target += targetStack.shift()
+				this.index      += (char === close) ? 1 : finalClose.length
+				this.start       = this.index
+				this.target      = ''
+				if (char === finalChar) while (this.targetStack.length > stackPos) {
+					this.target += this.targetStack.shift()
 				}
-				if (inLiteral && (targetStack.length === stackPos)) {
-					literalParts.push(parsed)
-					target += lastTarget + '$' + literalParts.length
+				if (this.inLiteral && (this.targetStack.length === stackPos)) {
+					this.literalParts.push(parsed)
+					this.target += lastTarget + '$' + this.literalParts.length
 					return conditional
 				}
-				if (lastTarget.length || target.length) {
-					target += lastTarget + parsed
+				if (lastTarget.length || this.target.length) {
+					this.target += lastTarget + parsed
 				}
 				else {
-					target = parsed
+					this.target = parsed
 				}
-				if (targetStack.length === stackPos) {
-					if (conditional && !parsed) {
-						if ((typeof target)[0] === 's') {
-							target = target.substring(0, target.lastIndexOf(' '))
-							while ((index < length) && !' \n\r\t\f'.includes(source[index])) {
-								index ++
-								start ++
-							}
-							index --
+				if (this.targetStack.length !== stackPos) {
+					continue
+				}
+				if (conditional && !parsed) {
+					if ((typeof this.target)[0] === 's') {
+						this.target = this.target.substring(0, this.target.lastIndexOf(' '))
+						while ((this.index < this.length) && !' \n\r\t\f'.includes(this.source[this.index])) {
+							this.index ++
+							this.start ++
 						}
-						return conditional
+						this.index --
 					}
 					return conditional
 				}
-				continue
+				return conditional
 			}
 
 			if ((char === '"') || (char === "'")) {
-				index ++
+				this.index ++
 				let c: string
-				while ((index < length) && ((c = source[index]) !== char)) {
-					if (c === '\\') index ++
-					index ++
+				while ((this.index < this.length) && ((c = this.source[this.index]) !== char)) {
+					if (c === '\\') this.index ++
+					this.index ++
 				}
 			}
 
-			index ++
+			this.index ++
 		}
 		// bad close
 		stackPos ++
-		while (targetStack.length > stackPos) {
-			target = targetStack.pop() + open + target
+		while (this.targetStack.length > stackPos) {
+			this.target = this.targetStack.pop() + open + this.target
 		}
-		target = targetStack.pop() + (finalClose.length ? '<!--' : open) + target
+		this.target = this.targetStack.pop() + (finalClose.length ? '<!--' : open) + this.target
 		return conditional
 	}
 
@@ -380,7 +391,7 @@ export default class Template
 	{
 		if (containerFileName && !this.included) {
 			const data = this.data
-			this.data  = Object.assign({ content: () => this.include(fileName, data) }, blockStack[0]?.data)
+			this.data  = Object.assign({ content: () => this.include(fileName, data) }, this.blockStack[0]?.data)
 			return this.parseFile(normalize(containerFileName))
 		}
 		this.fileName = fileName.substring(fileName.lastIndexOf(sep) + 1)
@@ -396,7 +407,7 @@ export default class Template
 		if ((expression[0] === '.') && (expression.startsWith('./') || expression.startsWith('../'))) {
 			return this.include(expression, data)
 		}
-		blockBack = 0
+		this.blockBack = 0
 		for (const variable of expression.split('.')) {
 			data = await this.parseVariable(variable, data)
 		}
@@ -424,8 +435,8 @@ export default class Template
 			return variable.substring(1, variable.length - 1)
 		}
 		if (firstChar === '-') {
-			blockBack ++
-			return blockStack[blockStack.length - blockBack].data
+			this.blockBack ++
+			return this.blockStack[this.blockStack.length - this.blockBack].data
 		}
 		for (const [prefix, callback] of this.parsers) {
 			if (firstChar === prefix) {
@@ -450,8 +461,8 @@ export default class Template
 		let iteration  = 0
 		let iterations = 0
 
-		while (index < length) {
-			let char = source[index]
+		while (this.index < this.length) {
+			let char = this.source[this.index]
 
 			// expression
 			if ((char === '{') && this.doExpression) {
@@ -461,75 +472,87 @@ export default class Template
 
 			// tag ?
 			if (char !== '<') {
-				index ++
+				this.index ++
 				continue
 			}
 
-			const tagIndex = index
-			char = source[++index]
+			const tagIndex = this.index
+			char = this.source[++this.index]
 			if (char === '!') {
-				if (inLiteral) {
+				if (this.inLiteral) {
 					this.literalTarget(tagIndex)
 				}
-				char = source[++index]
-				index ++
+				char = this.source[++this.index]
+				this.index ++
 
 				// comment tag
-				if ((char === '-') && (source[index] === '-')) {
-					index ++
+				if ((char === '-') && (this.source[this.index] === '-')) {
+					this.index ++
+					const firstChar = this.source[this.index]
 					if (
 						!this.doExpression
-						|| !this.startsExpression(source[index])
-						|| ((source[index] === 'B') && this.included && (source.substring(index, index + 8) === 'BEGIN-->'))
-						|| ((source[index] === 'E') && this.included && (source.substring(index, index + 6) === 'END-->'))
+						|| !this.startsExpression(firstChar)
+						|| (
+							(firstChar === 'B')
+							&& this.included
+							&& (this.source.substring(this.index, this.index + 8) === 'BEGIN-->')
+						)
+						|| (
+							(firstChar === 'E')
+							&& this.included
+							&& (this.source.substring(this.index, this.index + 6) === 'END-->')
+						)
 					) {
-						index = source.indexOf('-->', index) + 3
-						if (index === 2) break
-						if (inLiteral && (index > start)) {
+						this.index = this.source.indexOf('-->', this.index) + 3
+						if (this.index === 2) break
+						if (this.inLiteral && (this.index > this.start)) {
 							this.sourceToTarget()
 						}
 						continue
 					}
 
 					// end condition / loop block
-					if ('eE'.includes(source[index]) && ['end-->', 'END-->'].includes(source.substring(index, index + 6))) {
-						target += this.trimEndLine(source.substring(start, tagIndex))
+					if (
+						'eE'.includes(firstChar)
+						&& ['end-->', 'END-->'].includes(this.source.substring(this.index, this.index + 6))
+					) {
+						this.target += this.trimEndLine(this.source.substring(this.start, tagIndex))
 						iteration ++
 						if (iteration < iterations) {
-							data  = collection[iteration]
-							index = start = blockStart
-							if (inLiteral && (index > start)) {
+							data       = collection[iteration]
+							this.index = this.start = blockStart
+							if (this.inLiteral && (this.index > this.start)) {
 								this.sourceToTarget()
 							}
 							continue
 						}
-						({ blockStart, collection, data, iteration, iterations } = blockStack.pop()
+						({ blockStart, collection, data, iteration, iterations } = this.blockStack.pop()
 							?? { blockStart: 0, collection: [], data: undefined, iteration: 0, iterations: 0 })
-						index += 6
-						start  = index
-						if (inLiteral && (index > start)) {
+						this.index += 6
+						this.start  = this.index
+						if (this.inLiteral && (this.index > this.start)) {
 							this.sourceToTarget()
 						}
 						continue
 					}
 
 					// begin condition / loop block
-					blockStack.push({ blockStart, collection, data, iteration, iterations })
-					if (tagIndex > start) {
-						target += this.trimEndLine(source.substring(start, tagIndex))
-						start   = tagIndex
+					this.blockStack.push({ blockStart, collection, data, iteration, iterations })
+					if (tagIndex > this.start) {
+						this.target += this.trimEndLine(this.source.substring(this.start, tagIndex))
+						this.start   = tagIndex
 					}
-					const backTarget    = target
-					const backInLiteral = inLiteral
-					index     = tagIndex
-					target    = ''
-					inLiteral = false
-					const condition = await this.parseExpression(data, '}', '-->')
-					let blockData   = condition ? (target ? data : undefined) : target
-					blockStart = index
-					iteration  = 0
-					target     = backTarget
-					inLiteral  = backInLiteral
+					const backTarget    = this.target
+					const backInLiteral = this.inLiteral
+					this.index          = tagIndex
+					this.target         = ''
+					this.inLiteral      = false
+					const condition     = await this.parseExpression(data, '}', '-->')
+					let   blockData     = condition ? (this.target ? data : undefined) : this.target
+					blockStart          = this.index
+					iteration           = 0
+					this.target         = backTarget
+					this.inLiteral      = backInLiteral
 					if (Array.isArray(blockData)) {
 						collection = blockData
 						data       = collection[0]
@@ -544,24 +567,24 @@ export default class Template
 						this.skipBlock()
 						continue
 					}
-					if (inLiteral && (index > start)) {
+					if (this.inLiteral && (this.index > this.start)) {
 						this.sourceToTarget()
 					}
 					continue
 				}
 
 				// cdata section
-				if ((char === '[') && (source.substring(index, index + 6) === 'CDATA[')) {
-					index = source.indexOf(']]>', index + 6) + 3
-					if (index === 2) break
+				if ((char === '[') && (this.source.substring(this.index, this.index + 6) === 'CDATA[')) {
+					this.index = this.source.indexOf(']]>', this.index + 6) + 3
+					if (this.index === 2) break
 				}
 
 				// DOCTYPE
 				else {
-					index = source.indexOf('>', index) + 1
+					this.index = this.source.indexOf('>', this.index) + 1
 				}
 
-				if (inLiteral) {
+				if (this.inLiteral) {
 					this.sourceToTarget()
 				}
 				continue
@@ -569,167 +592,165 @@ export default class Template
 
 			// tag close
 			if (char === '/') {
-				index ++
-				const closeTagName = source.substring(index, source.indexOf('>', index))
-				index += closeTagName.length + 1
+				this.index ++
+				const closeTagName = this.source.substring(this.index, this.source.indexOf('>', this.index))
+				this.index += closeTagName.length + 1
 				if (inHead && (closeTagName[0] === 'h') && (closeTagName === 'head')) {
 					inHead = false
-					if (!doHeadLinks) {
-						doneLinks = headLinks
-						headLinks = new SortedArray<string>
-						headLinks.distinct = true
+					if (!this.doHeadLinks) {
+						this.doneLinks = this.headLinks
+						this.headLinks = new SortedArray<string>()
+						this.headLinks.distinct = true
 					}
 				}
-				let shouldInLiteral = inLiteral
+				let shouldInLiteral = this.inLiteral
 				if (!this.unclosingTags.includes(closeTagName)) {
 					do {
 						shouldInLiteral = this.closeTag(shouldInLiteral, tagIndex)
 					}
-					while ((tagName !== closeTagName) && tagName.length)
+					while ((this.tagName !== closeTagName) && this.tagName.length)
 				}
 				if (shouldInLiteral) {
-					lockLiteral = false
-					this.literalTarget(tagIndex, (tagName[0] === 't') && (tagName === 'title'))
+					this.lockLiteral = false
+					this.literalTarget(tagIndex, (this.tagName[0] === 't') && (this.tagName === 'title'))
 				}
-				if (inLiteral && (index > start)) {
+				if (this.inLiteral && (this.index > this.start)) {
 					this.sourceToTarget()
 				}
 				continue
 			}
 
 			// tag open
-			while ((index < length) && !' >\n\r\t\f'.includes(source[index])) index ++
-			tagName = source.substring(tagIndex + 1, index)
-			if (this.onTagOpen) this.onTagOpen.call(this, tagName)
-			while (' \n\r\t\f'.includes(source[index])) index ++
-			char = tagName[0]
-			if ((char === 'h') && (tagName === 'head')) {
+			while ((this.index < this.length) && !' >\n\r\t\f'.includes(this.source[this.index])) this.index ++
+			this.tagName = this.source.substring(tagIndex + 1, this.index)
+			if (this.onTagOpen) this.onTagOpen.call(this, this.tagName)
+			while (' \n\r\t\f'.includes(this.source[this.index])) this.index ++
+			char = this.tagName[0]
+			if ((char === 'h') && (this.tagName === 'head')) {
 				inHead = true
 			}
 
-			const unclosingTag = this.unclosingTags.includes(tagName)
+			const unclosingTag = this.unclosingTags.includes(this.tagName)
 			if (!unclosingTag) {
-				tagStack.push({ tagName, inLiteral })
+				this.tagStack.push({ tagName: this.tagName, inLiteral: this.inLiteral })
 			}
 			let inlineElement = false
 			let pushedParts   = false
-			if (inLiteral) {
-				inlineElement = this.inlineElements.includes(tagName)
+			if (this.inLiteral) {
+				inlineElement = this.inlineElements.includes(this.tagName)
 				if (inlineElement) {
-					if (literalParts.length) {
-						targetStack.push(target + source.substring(start, tagIndex))
+					if (this.literalParts.length) {
+						this.targetStack.push(this.target + this.source.substring(this.start, tagIndex))
 					}
 					else {
-						targetStack.push(target, source.substring(start, tagIndex))
+						this.targetStack.push(this.target, this.source.substring(this.start, tagIndex))
 					}
-					start  = tagIndex
-					target = ''
+					this.start  = tagIndex
+					this.target = ''
 					if (!unclosingTag) {
-						literalPartStack.push(literalParts)
-						literalParts = []
-						pushedParts  = true
+						this.literalPartStack.push(this.literalParts)
+						this.literalParts = []
+						pushedParts       = true
 					}
 				}
 				else {
 					this.literalTarget(tagIndex)
 				}
 			}
-			const elementInLiteral = inLiteral
+			const elementInLiteral = this.inLiteral
 
 			// attributes
 			let   hasTypeSubmit  = false
-			const inInput        = (char === 'i') && (tagName === 'input')
-			const inLink         = (char === 'l') && (tagName === 'link')
-			const inScript       = (char === 's') && (tagName === 'script')
+			const inInput        = (char === 'i') && (this.tagName === 'input')
+			const inLink         = (char === 'l') && (this.tagName === 'link')
+			const inScript       = (char === 's') && (this.tagName === 'script')
 			let   targetTagIndex = -1
 			if (inHead && (inLink || inScript)) {
 				this.sourceToTarget()
-				targetTagIndex = target.lastIndexOf('<')
+				targetTagIndex = this.target.lastIndexOf('<')
 			}
-			while (source[index] !== '>') {
+			while (this.source[this.index] !== '>') {
 
 				// attribute name
-				const position = index
-				while ((index < length) && !' =>\n\r\t\f'.includes(source[index])) index ++
-				const attributeName = source.substring(position, index)
-				while (' \n\r\t\f'.includes(source[index])) index ++
+				const position = this.index
+				while ((this.index < this.length) && !' =>\n\r\t\f'.includes(this.source[this.index])) this.index ++
+				const attributeName = this.source.substring(position, this.index)
+				while (' \n\r\t\f'.includes(this.source[this.index])) this.index ++
 
 				// attribute value
-				if (source[index] === '=') {
-					index ++
-					while (' \n\r\t\f'.includes(source[index])) index ++
+				if (this.source[this.index] === '=') {
+					this.index ++
+					while (' \n\r\t\f'.includes(this.source[this.index])) this.index ++
 					const attributeChar = attributeName[0]
 					const [open, close] = (
 						'afhls'.includes(attributeChar)
 						&& ['action', 'formaction', 'href', 'location', 'src'].includes(attributeName)
 					) ? ['(', ')']
 						: ['{', '}']
-					let quote = source[index]
+					let quote = this.source[this.index]
 					if ((quote === '"') || (quote === "'")) {
-						index ++
+						this.index ++
 					}
 					else {
 						quote = ' >'
 					}
-					if ((open === '(') && (source.substring(index, index + 6) === 'app://')) {
+					if ((open === '(') && (this.source.substring(this.index, this.index + 6) === 'app://')) {
 						this.sourceToTarget()
-						index += 6
-						start  = index
+						this.index += 6
+						this.start  = this.index
 					}
 
-					inLiteral = this.doLiteral && (
+					this.inLiteral = this.doLiteral && (
 						this.literalAttributes.includes(attributeName)
 						|| (hasTypeSubmit && (attributeChar === 'v') && (attributeName === 'value'))
 					)
-					if (inLiteral && !pushedParts && unclosingTag && literalParts.length) {
-						literalPartStack.push(literalParts)
-						literalParts = []
-						pushedParts  = true
+					if (this.inLiteral && !pushedParts && unclosingTag && this.literalParts.length) {
+						this.literalPartStack.push(this.literalParts)
+						this.literalParts = []
+						pushedParts       = true
 					}
 
 					const inLinkHRef  = inLink   && (attributeChar === 'h') && (attributeName === 'href')
 					const inScriptSrc = inScript && (attributeChar === 's') && (attributeName === 'src')
-					if ((inLinkHRef || inScriptSrc || inLiteral) && (index > start)) {
+					if ((inLinkHRef || inScriptSrc || this.inLiteral) && (this.index > this.start)) {
 						this.sourceToTarget()
 					}
 
-					const position   = index
+					const position   = this.index
 					const shortQuote = !(quote.length - 1)
-					while (index < length) {
-						const char = source[index]
+					while (this.index < this.length) {
+						const char = this.source[this.index]
 						// end of attribute value
 						if (shortQuote ? (char === quote) : quote.includes(char)) {
-							const attributeValue = source.substring(position, index)
-							if (inInput) {
-								hasTypeSubmit ||= (
-									(attributeChar === 't') && (attributeValue[0] === 's')
+							const attributeValue = this.source.substring(position, this.index)
+							if (inInput && (hasTypeSubmit === undefined)) {
+								hasTypeSubmit = (attributeChar === 't') && (attributeValue[0] === 's')
 									&& (attributeName === 'type') && (attributeValue === 'submit')
-								)
 							}
-							if (inLiteral) {
-								this.literalTarget(index)
+							if (this.inLiteral) {
+								this.literalTarget(this.index)
 							}
 							if (inLinkHRef && attributeValue.endsWith('.css')) {
-								let frontStyle = normalize(this.filePath + sep + source.substring(start, index))
+								let frontStyle = normalize(this.filePath + sep + this.source.substring(this.start, this.index))
 									.substring(appDir.length)
 								if (sep !== '/') {
 									frontStyle = frontStyle.replaceAll(sep, '/')
 								}
-								target += frontStyle
-								start = index
+								this.target += frontStyle
+								this.start = this.index
 							}
 							if (inScriptSrc && attributeValue.endsWith('.js')) {
-								let frontScript = normalize(this.filePath + sep + source.substring(start, index))
+								let frontScript = normalize(this.filePath + sep + this.source.substring(this.start, this.index))
 									.substring(appDir.length)
 								if (sep !== '/') {
 									frontScript = frontScript.replaceAll(sep, '/')
 								}
 								frontScripts.insert(frontScript)
-								target += frontScript
-								start   = index
+								this.target += frontScript
+								this.start   = this.index
 							}
 							if (this.onAttribute) this.onAttribute(attributeName, attributeValue)
-							if (char !== '>') index ++
+							if (char !== '>') this.index ++
 							break
 						}
 						// expression in attribute value
@@ -737,32 +758,32 @@ export default class Template
 							await this.parseExpression(data, close)
 							continue
 						}
-						index ++
+						this.index ++
 					}
 				}
 				else if (this.onAttribute) this.onAttribute(attributeName, '')
 
 				// next attribute
-				while (' \n\r\t\f'.includes(source[index])) index ++
+				while (' \n\r\t\f'.includes(this.source[this.index])) this.index ++
 			}
-			index ++
-			if (this.onTagOpened) this.onTagOpened.call(this, tagName)
+			this.index ++
+			if (this.onTagOpened) this.onTagOpened.call(this, this.tagName)
 
 			// skip script content
 			if (inScript) {
 				if (this.onTagClose) this.onTagClose.call(this, 'script')
-				index = source.indexOf('</script>', index) + 9
-				if (index === 8) break
-				if (inLiteral && (index > start)) {
+				this.index = this.source.indexOf('</script>', this.index) + 9
+				if (this.index === 8) break
+				if (this.inLiteral && (this.index > this.start)) {
 					this.sourceToTarget()
 				}
 			}
 
 			if (targetTagIndex > -1) {
 				this.sourceToTarget()
-				const headLink = target.substring(targetTagIndex)
-				if (!doneLinks || !doneLinks.includes(headLink)) {
-					headLinks.insert(headLink)
+				const headLink = this.target.substring(targetTagIndex)
+				if (!this.doneLinks || !this.doneLinks.includes(headLink)) {
+					this.headLinks.insert(headLink)
 				}
 			}
 
@@ -772,103 +793,103 @@ export default class Template
 
 			if (unclosingTag) {
 				if (pushedParts) {
-					literalParts = literalPartStack.pop() as string[]
+					this.literalParts = this.literalPartStack.pop() as string[]
 				}
-				inLiteral = elementInLiteral
-				if (this.onTagClose) this.onTagClose.call(this, tagName)
-				if (inLiteral) {
-					if (index > start) {
+				this.inLiteral = elementInLiteral
+				if (this.onTagClose) this.onTagClose.call(this, this.tagName)
+				if (this.inLiteral) {
+					if (this.index > this.start) {
 						this.sourceToTarget()
 					}
 					if (inlineElement) {
-						literalParts.push(target)
-						target = targetStack.pop() + '$' + literalParts.length
+						this.literalParts.push(this.target)
+						this.target = this.targetStack.pop() + '$' + this.literalParts.length
 					}
 				}
 			}
 			else {
-				lockLiteral ||= (tagName[0] === 'a') && (tagName === 'address')
-				inLiteral     = this.doLiteral && !lockLiteral && this.literalElements.includes(tagName)
-				if (inLiteral && (index > start)) {
+				this.lockLiteral ||= (this.tagName[0] === 'a') && (this.tagName === 'address')
+				this.inLiteral     = this.doLiteral && !this.lockLiteral && this.literalElements.includes(this.tagName)
+				if (this.inLiteral && (this.index > this.start)) {
 					this.sourceToTarget()
 				}
 			}
 		}
-		if (tagStack.length) {
-			let shouldInLiteral = inLiteral
-			while (tagStack.length) {
-				shouldInLiteral = this.closeTag(shouldInLiteral, length)
+		if (this.tagStack.length) {
+			let shouldInLiteral = this.inLiteral
+			while (this.tagStack.length) {
+				shouldInLiteral = this.closeTag(shouldInLiteral, this.length)
 			}
 			if (shouldInLiteral) {
-				this.literalTarget(length)
+				this.literalTarget(this.length)
 			}
-			return target
+			return this.target
 		}
-		if (inLiteral) {
-			this.literalTarget(index)
+		if (this.inLiteral) {
+			this.literalTarget(this.index)
 		}
-		if (start < length) {
-			target += source.substring(start)
-			start   = length
+		if (this.start < this.length) {
+			this.target += this.source.substring(this.start)
+			this.start   = this.length
 		}
-		return target
+		return this.target
 	}
 
-	setSource(setSource: string, setIndex = 0, setStart?: number, setTarget = '')
+	setSource(source: string, index = 0, start?: number, target = '')
 	{
-		index    = setIndex
-		length   = setSource.length
-		source   = setSource
-		start    = setStart ?? index
-		tagName  = ''
-		tagStack = []
-		target   = setTarget
+		this.index    = index
+		this.length   = source.length
+		this.source   = source
+		this.start    = start ?? index
+		this.tagName  = ''
+		this.tagStack = []
+		this.target   = target
 
-		inLiteral        = this.doLiteral
-		literalPartStack = []
-		literalParts     = []
-		lockLiteral      = false
-		targetStack      = []
+		this.inLiteral        = this.doLiteral
+		this.literalPartStack = []
+		this.literalParts     = []
+		this.lockLiteral      = false
+		this.targetStack      = []
 	}
 
 	skipBlock()
 	{
-		if (index > start) {
+		if (this.index > this.start) {
 			this.sourceToTarget()
 		}
 		let depth = 1
 		while (depth) {
-			index = source.indexOf('<!--', index)
-			if (index < 0) {
+			this.index = this.source.indexOf('<!--', this.index)
+			if (this.index < 0) {
 				break
 			}
-			index += 4
-			const char = source[index]
+			this.index += 4
+			const char = this.source[this.index]
 			if (!this.startsExpression(char)) {
 				continue
 			}
-			if ((char === 'e') && (source.substring(index, index + 6) === 'end-->')) {
+			if ((char === 'e') && (this.source.substring(this.index, this.index + 6) === 'end-->')) {
 				depth --
 				continue
 			}
 			depth ++
 		}
-		index -= 4
-		if (index < 0) {
-			index = length
+		this.index -= 4
+		if (this.index < 0) {
+			this.index = this.length
 		}
-		start = index
+		this.start = this.index
 	}
 
 	sourceToTarget()
 	{
-		target += source.substring(start, index)
-		start   = index
+		this.target += this.source.substring(this.start, this.index)
+		this.start   = this.index
 	}
 
 	startsExpression(char: string, open = '{', close = '}')
 	{
-		return RegExp('[a-z0-9"%*.?@\'' + open + close + '-]', 'i').test(char)
+		return RegExp('[a-z0-9"*.?\'' + open + close + '-' + this.prefixes + ']', 'i').test(char)
 	}
 
 	trimEndLine(string: string)
