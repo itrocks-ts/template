@@ -718,7 +718,7 @@ export default class Template
 						// end of attribute value
 						if (shortQuote ? (char === quote) : quote.includes(char)) {
 							const attributeValue = this.source.substring(position, this.index)
-							if (inInput && (hasTypeSubmit === undefined)) {
+							if (inInput && !hasTypeSubmit) {
 								hasTypeSubmit = (attributeChar === 't') && (attributeValue[0] === 's')
 									&& (attributeName === 'type') && (attributeValue === 'submit')
 							}
