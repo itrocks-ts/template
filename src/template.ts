@@ -200,6 +200,7 @@ export default class Template
 		template.doExpression = this.doExpression
 		template.doHeadLinks  = true
 		template.doLiteral    = this.doLiteral
+		template.doneLinks    = this.headLinks
 		template.included     = true
 		template.onAttribute  = this.onAttribute
 		template.onTagClose   = this.onTagClose
@@ -213,6 +214,9 @@ export default class Template
 				? path
 				: (this.filePath + sep + path)
 		)
+
+		this.headLinks.push(...template.headLinks)
+		this.headTitle = template.headTitle
 
 		return parsed.substring(parsed.indexOf('<!--BEGIN-->') + 12, parsed.indexOf('<!--END-->'))
 	}
@@ -265,10 +269,6 @@ export default class Template
 		if (this.headLinks.length) {
 			const position = this.target.lastIndexOf('>', this.target.indexOf('</head>')) + 1
 			this.target = this.target.slice(0, position) + '\n\t' + this.headLinks.join('\n\t') + this.target.slice(position)
-			this.doneLinks = new SortedArray<string>
-			this.headLinks = new SortedArray<string>
-			this.doneLinks.distinct = true
-			this.headLinks.distinct = true
 		}
 		if (this.headTitle && !this.included) {
 			const position = this.target.indexOf('>', this.target.indexOf('<title') + 6) + 1
@@ -597,11 +597,6 @@ export default class Template
 				this.index += closeTagName.length + 1
 				if (inHead && (closeTagName[0] === 'h') && (closeTagName === 'head')) {
 					inHead = false
-					if (!this.doHeadLinks) {
-						this.doneLinks = this.headLinks
-						this.headLinks = new SortedArray<string>()
-						this.headLinks.distinct = true
-					}
 				}
 				let shouldInLiteral = this.inLiteral
 				if (!this.unclosingTags.includes(closeTagName)) {
@@ -782,7 +777,7 @@ export default class Template
 			if (targetTagIndex > -1) {
 				this.sourceToTarget()
 				const headLink = this.target.substring(targetTagIndex)
-				if (!this.doneLinks || !this.doneLinks.includes(headLink)) {
+				if (!this.doneLinks.includes(headLink)) {
 					this.headLinks.insert(headLink)
 				}
 			}
