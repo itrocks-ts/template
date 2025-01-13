@@ -29,6 +29,12 @@
 		"*/*.d.ts",
 		"*/*.js"
 	],
+	"homepage": "it.rocks",
+	"jest": {
+		"preset": "ts-jest",
+		"testEnvironment": "node",
+		"testMatch": ["**/?(*.)+(spec|test).ts"]
+	},
 	"keywords": [
 		"browser",
 		"dynamic",
@@ -51,7 +57,7 @@
 	"name": "@itrocks/template",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/itrocks-ts/template"
+		"url": "git+https://github.com/itrocks-ts/template.git"
 	},
 	"scripts": {
 		"build": "npm run build:cjs && npm run build:esm",
@@ -60,5 +66,5 @@
 		"test": "jest"
 	},
 	"types": "./esm/template.d.ts",
-	"version": "0.0.21"
+	"version": "0.0.22"
 }
