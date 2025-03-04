@@ -37,6 +37,7 @@ export default class Template
 	lockLiteral     = false
 
 	// html head
+	addLinks    = new SortedArray<string>()
 	doHeadLinks = false
 	doneLinks   = new SortedArray<string>()
 	headLinks   = new SortedArray<string>()
@@ -89,6 +90,7 @@ export default class Template
 
 	constructor(public data?: any, public containerData?: any)
 	{
+		this.addLinks.distinct  = true
 		this.doneLinks.distinct = true
 		this.headLinks.distinct = true
 
@@ -150,11 +152,14 @@ export default class Template
 
 	getCleanContext()
 	{
+		const addLinks     = new SortedArray<string>
 		const doneLinks    = new SortedArray<string>
 		const headLinks    = new SortedArray<string>
+		addLinks.distinct  = true
 		doneLinks.distinct = true
 		headLinks.distinct = true
 		return {
+			addLinks:         addLinks,
 			doHeadLinks:      false,
 			doneLinks:        doneLinks,
 			headLinks:        headLinks,
@@ -178,6 +183,7 @@ export default class Template
 	getContext()
 	{
 		return {
+			addLinks:         this.addLinks,
 			doHeadLinks:      this.doHeadLinks,
 			doneLinks:        this.doneLinks,
 			headLinks:        this.headLinks,
@@ -215,6 +221,9 @@ export default class Template
 				: (this.filePath + sep + path)
 		)
 
+		if (!this.doHeadLinks) {
+			this.addLinks.push(...template.headLinks)
+		}
 		this.headLinks.push(...template.headLinks)
 		this.headTitle = template.headTitle
 
@@ -226,6 +235,8 @@ export default class Template
 		const clean   = this.getCleanContext()
 		const context = this.getContext()
 		return context.doHeadLinks           === clean.doHeadLinks
+			&& context.addLinks.distinct       === clean.addLinks.distinct
+			&& context.addLinks.length         === clean.addLinks.length
 			&& context.doneLinks.distinct      === clean.doneLinks.distinct
 			&& context.doneLinks.length        === clean.doneLinks.length
 			&& context.headLinks.distinct      === clean.headLinks.distinct
@@ -266,9 +277,9 @@ export default class Template
 		if (this.doHeadLinks) {
 			return this.target
 		}
-		if (this.headLinks.length) {
+		if (this.addLinks.length) {
 			const position = this.target.lastIndexOf('>', this.target.indexOf('</head>')) + 1
-			this.target = this.target.slice(0, position) + '\n\t' + this.headLinks.join('\n\t') + this.target.slice(position)
+			this.target = this.target.slice(0, position) + '\n\t' + this.addLinks.join('\n\t') + this.target.slice(position)
 		}
 		if (this.headTitle && !this.included) {
 			const position = this.target.indexOf('>', this.target.indexOf('<title') + 6) + 1
