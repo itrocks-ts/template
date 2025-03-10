@@ -377,12 +377,26 @@ Result:
 
 ### Including Another Template
 
-Any expression starting with `./` or `../` is considered a template include:
+Any expression starting with `/`, `./` or `../` is considered a template include:
 ```html
 <div>
 	{./another-template.html}
 </div>
 ```
+
+The default contextual data is the one in the current scope.
+
+You can pass parent or sub-data to your included template as an alternative context:
+```html
+<div>
+  <!--subData-->
+  {./another-template.html-}
+  {./another-template.html(-)}
+  <!--end-->
+  {./another-template.html(subData)}
+</div>
+```
+In this example, `-` refers to the parent block context. Parentheses are optional in this specific case.
 
 #### Delimiting Rendered Content in an Included Template
 

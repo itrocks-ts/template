@@ -227,7 +227,11 @@ export default class Template
 		this.headLinks.push(...template.headLinks)
 		this.headTitle = template.headTitle
 
-		return parsed.substring(parsed.indexOf('<!--BEGIN-->') + 12, parsed.indexOf('<!--END-->'))
+		const beginPosition = parsed.indexOf('<!--BEGIN-->')
+		const endPosition   = parsed.indexOf('<!--END-->')
+		return (beginPosition > -1)
+			? parsed.slice(beginPosition + 12, (endPosition > -1) ? endPosition : parsed.length)
+			: parsed
 	}
 
 	isContextClean()
@@ -367,7 +371,7 @@ export default class Template
 				if (conditional && !parsed) {
 					if ((typeof this.target)[0] === 's') {
 						this.target = this.target.substring(0, this.target.lastIndexOf(' '))
-						while ((this.index < this.length) && !' \n\r\t\f'.includes(this.source[this.index])) {
+						while ((this.index < this.length) && !' >\n\r\t\f'.includes(this.source[this.index])) {
 							this.index ++
 							this.start ++
 						}
@@ -410,12 +414,33 @@ export default class Template
 		return this.parseBuffer(await readFile(fileName, 'utf-8'))
 	}
 
-	async parsePath(expression: string, data: any)
+	async parsePath(expression: string, data: any): Promise<any>
 	{
 		if (expression === '') {
 			return undefined
 		}
-		if ((expression[0] === '.') && (expression.startsWith('./') || expression.startsWith('../'))) {
+		if (
+			((expression[0] === '.') && ((expression[1] === '/') || ((expression[1] === '.') && (expression[2] === '/'))))
+			|| (expression[0] === '/')
+		) {
+			let expressionEnd = expression.length - 1
+			if (expression[expressionEnd] === '-') {
+				let blockBack = 1
+				expressionEnd --
+				while (expression[expressionEnd] === '-') {
+					blockBack ++
+					expressionEnd --
+				}
+				const blockStack = this.blockStack
+				return this.include(expression.slice(0, expressionEnd), blockStack[blockStack.length - blockBack].data)
+			}
+			if (expression[expressionEnd] === ')') {
+				const openPosition = expression.lastIndexOf('(')
+				return this.include(
+					expression.slice(0, openPosition),
+					await this.parsePath(expression.slice(openPosition + 1, expression.length - 1), data)
+				)
+			}
 			return this.include(expression, data)
 		}
 		this.blockBack = 0
@@ -428,7 +453,7 @@ export default class Template
 	async parseVariable(variable: string, data: any)
 	{
 		if (variable === '') {
-			return (typeof data === 'function')
+			return (((typeof data)[0] === 'f') && ((data + '')[0] !== 'c'))
 				? data.call()
 				: data
 		}
@@ -458,7 +483,7 @@ export default class Template
 			data = new Str(data)
 		}
 		let value = data[variable]
-		return ((typeof value === 'function') && !value.prototype)
+		return (((typeof value)[0] === 'f') && ((value + '')[0] !== 'c'))
 			? value.call(data)
 			: value
 	}
@@ -548,7 +573,6 @@ export default class Template
 					}
 
 					// begin condition / loop block
-					this.blockStack.push({ blockStart, collection, data, iteration, iterations })
 					if (tagIndex > this.start) {
 						this.target += this.trimEndLine(this.source.substring(this.start, tagIndex))
 						this.start   = tagIndex
@@ -559,6 +583,7 @@ export default class Template
 					this.target         = ''
 					this.inLiteral      = false
 					const condition     = await this.parseExpression(data, '}', '-->')
+					this.blockStack.push({ blockStart, collection, data, iteration, iterations })
 					let   blockData     = condition ? (this.target ? data : undefined) : this.target
 					blockStart          = this.index
 					iteration           = 0
