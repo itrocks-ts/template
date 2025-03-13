@@ -4,7 +4,14 @@ import { SortedArray }    from '@itrocks/sorted-array'
 import { readFile }       from 'node:fs/promises'
 import { normalize, sep } from 'node:path'
 
-type BlockStack = { blockStart: number, collection: any[], data: any, iteration: number, iterations: number }[]
+type BlockStackEntry = {
+	blockStart: number,
+	collection: any[],
+	condition?: boolean,
+	data:       any,
+	iteration:  number,
+	iterations: number
+}
 
 export type VariableParser = [parser: string, (variable: string, data: any) => any]
 
@@ -16,7 +23,7 @@ export default class Template
 {
 	// block stack
 	blockBack = 0
-	blockStack: BlockStack
+	blockStack: BlockStackEntry[] = []
 
 	// parser
 	doExpression = true
@@ -94,7 +101,6 @@ export default class Template
 		this.doneLinks.distinct = true
 		this.headLinks.distinct = true
 
-		this.blockStack = []
 		if (containerData) {
 			this.blockStack.push({ blockStart: 0, collection: [], data: containerData, iteration: 0, iterations: 1 })
 		}
@@ -471,8 +477,13 @@ export default class Template
 			return variable.substring(1, variable.length - 1)
 		}
 		if (firstChar === '-') {
-			this.blockBack ++
-			return this.blockStack[this.blockStack.length - this.blockBack].data
+			let dataBack: BlockStackEntry
+			do {
+				this.blockBack ++
+				dataBack = this.blockStack[this.blockStack.length - this.blockBack]
+			}
+			while (dataBack.condition)
+			return dataBack.data
 		}
 		for (const [prefix, callback] of this.parsers) {
 			if (firstChar === prefix) {
@@ -548,10 +559,7 @@ export default class Template
 					}
 
 					// end condition / loop block
-					if (
-						'eE'.includes(firstChar)
-						&& ['end-->', 'END-->'].includes(this.source.substring(this.index, this.index + 6))
-					) {
+					if ((firstChar === 'e') && (this.source.substring(this.index, this.index + 6) === 'end-->')) {
 						this.target += this.trimEndLine(this.source.substring(this.start, tagIndex))
 						iteration ++
 						if (iteration < iterations) {
@@ -583,12 +591,12 @@ export default class Template
 					this.target         = ''
 					this.inLiteral      = false
 					const condition     = await this.parseExpression(data, '}', '-->')
-					this.blockStack.push({ blockStart, collection, data, iteration, iterations })
-					let   blockData     = condition ? (this.target ? data : undefined) : this.target
-					blockStart          = this.index
-					iteration           = 0
-					this.target         = backTarget
-					this.inLiteral      = backInLiteral
+					this.blockStack.push({ blockStart, collection, condition, data, iteration, iterations })
+					let blockData  = condition ? (this.target ? data : undefined) : this.target
+					blockStart     = this.index
+					iteration      = 0
+					this.target    = backTarget
+					this.inLiteral = backInLiteral
 					if (Array.isArray(blockData)) {
 						collection = blockData
 						data       = collection[0]
