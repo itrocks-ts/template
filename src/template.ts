@@ -1,5 +1,5 @@
-import Str                from '@itrocks/rename'
-import appDir             from '@itrocks/app-dir'
+import { appDir }         from '@itrocks/app-dir'
+import { Str }            from '@itrocks/rename'
 import { SortedArray }    from '@itrocks/sorted-array'
 import { readFile }       from 'node:fs/promises'
 import { normalize, sep } from 'node:path'
