@@ -330,13 +330,13 @@ Result:
 
 ### Climbing Back Up the Data Structure
 
-Use `-` to go back up one level in the data context:
+Begin with a dot (`.`) to navigate up one level in the data context:
 ```ts
 new Template({ name: 'Eddie', data: { age: 30, status: 'well' } })
 	.parseBuffer(`
 		<!--data-->
 		<ol>
-			<li>name: {-.name}</li>
+			<li>name: {.name}</li>
 			<li>age: {age}</li>
 			<li>status: {status}</li>
 		</ol>
@@ -348,6 +348,13 @@ Result:
 ```html
 <ol><li>name: Eddie</li><li>age: 30</li><li>status: well</li></ol>
 ```
+
+- To climb multiple levels up, add more dots (`.`).
+  Example: `{...name}` moves up three levels before retrieving `name`.
+- dots (`.`) used alone indicate how many levels to move up:
+  - `{.}` refers to the current context (does not move up).
+  - `{..}` moves up one level (parent context).
+  - `{...}` moves up two levels.
 
 ### Simple Literals
 
@@ -390,13 +397,12 @@ You can pass parent or sub-data to your included template as an alternative cont
 ```html
 <div>
   <!--subData-->
-  {./another-template.html-}
-  {./another-template.html(-)}
+  {./another-template.html(..)}
   <!--end-->
   {./another-template.html(subData)}
 </div>
 ```
-In this example, `-` refers to the parent block context. Parentheses are optional in this specific case.
+In this example, `..` refers to the parent context. Parentheses are optional in this specific case.
 
 #### Delimiting Rendered Content in an Included Template
 
@@ -551,7 +557,7 @@ When the template encounters something like {@userId}, it will call myParser to 
 
 #### doExpression (boolean)
 
-By default, the template engine attempts to interpret `{...}` and `<!--...-->` blocks as expressions or directives.
+By default, the template engine attempts to interpret `{foo}` and `<!--bar-->` blocks as expressions or directives.
 If you disable `doExpression`, the engine will treat them as literal text and not attempt to parse them.
 
 - Set `template.doExpression = false` if you only want to read the template as-is without any dynamic substitution.

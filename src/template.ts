@@ -449,6 +449,20 @@ export default class Template
 			}
 			return this.include(expression, data)
 		}
+		let onlyDots = true
+		for (const c of expression) {
+			if (c === '.') continue
+			onlyDots = false
+			break
+		}
+		if (onlyDots) {
+			if (expression.length <= 1) {
+				return (((typeof data)[0] === 'f') && ((data + '')[0] !== 'c'))
+					? data.call()
+					: data
+			}
+			expression = expression.slice(2)
+		}
 		this.blockBack = 0
 		for (const variable of expression.split('.')) {
 			data = await this.parseVariable(variable, data)
@@ -459,9 +473,13 @@ export default class Template
 	async parseVariable(variable: string, data: any)
 	{
 		if (variable === '') {
-			return (((typeof data)[0] === 'f') && ((data + '')[0] !== 'c'))
-				? data.call()
-				: data
+			let dataBack: BlockStackEntry
+			do {
+				this.blockBack ++
+				dataBack = this.blockStack[this.blockStack.length - this.blockBack]
+			}
+			while (dataBack.condition)
+			return dataBack.data
 		}
 		if (variable === '*') {
 			return (typeof data === 'object') ? Object.values(data) : data
@@ -475,15 +493,6 @@ export default class Template
 			|| ((firstChar === "'") && (variable[variable.length - 1] === "'"))
 		) {
 			return variable.substring(1, variable.length - 1)
-		}
-		if (firstChar === '-') {
-			let dataBack: BlockStackEntry
-			do {
-				this.blockBack ++
-				dataBack = this.blockStack[this.blockStack.length - this.blockBack]
-			}
-			while (dataBack.condition)
-			return dataBack.data
 		}
 		for (const [prefix, callback] of this.parsers) {
 			if (firstChar === prefix) {
@@ -928,7 +937,7 @@ export default class Template
 
 	startsExpression(char: string, open = '{', close = '}')
 	{
-		return RegExp('[a-z0-9"*.?\'' + open + close + this.prefixes + '-]', 'i').test(char)
+		return RegExp('[a-z0-9"*.?\'' + open + close + this.prefixes + ']', 'i').test(char)
 	}
 
 	trimEndLine(string: string)
