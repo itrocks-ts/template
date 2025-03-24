@@ -67,5 +67,5 @@
 		"test": "jest"
 	},
 	"types": "./esm/template.d.ts",
-	"version": "0.0.29"
+	"version": "0.0.30"
 }

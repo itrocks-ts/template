@@ -18,8 +18,7 @@ export type VariableParser = [parser: string, (variable: string, data: any) => a
 export const frontScripts = new SortedArray<string>()
 frontScripts.distinct = true
 
-export { Template }
-export default class Template
+export class Template
 {
 	// block stack
 	blockBack = 0

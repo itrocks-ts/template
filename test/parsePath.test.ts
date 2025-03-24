@@ -1,4 +1,4 @@
-import Template from '../cjs/template'
+import { Template } from '../cjs/template'
 
 const template = new Template
 template.parseVariable = (variable: string, data: any): any =>
