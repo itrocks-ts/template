@@ -33,7 +33,9 @@
 	"jest": {
 		"preset": "ts-jest",
 		"testEnvironment": "node",
-		"testMatch": ["**/?(*.)+(spec|test).ts"]
+		"testMatch": [
+			"**/?(*.)+(spec|test).ts"
+		]
 	},
 	"keywords": [
 		"backend",
@@ -67,5 +69,5 @@
 		"test": "jest"
 	},
 	"types": "./esm/template.d.ts",
-	"version": "0.0.30"
+	"version": "0.0.31"
 }

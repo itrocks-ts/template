@@ -17,7 +17,7 @@ npm i @itrocks/template
 ## Basic Usage
 
 ```ts
-import '@itrocks/template'
+import { Template } from '@itrocks/template'
 
 new Template({
 	users: [
@@ -437,7 +437,7 @@ are supported.
 
 Example of a custom template class that applies translations:
 ```ts
-import Template from '@itrocks/template'
+import { Template } from '@itrocks/template'
 
 const TRANSLATIONS: Record<string, string> = {
 	'What is my name': 'Quel est mon nom',
