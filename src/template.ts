@@ -228,9 +228,9 @@ export class Template
 
 		if (!this.doHeadLinks) {
 			this.addLinks.push(...template.headLinks)
+			this.headTitle = template.headTitle
 		}
 		this.headLinks.push(...template.headLinks)
-		this.headTitle = template.headTitle
 
 		const beginPosition = parsed.indexOf('<!--BEGIN-->')
 		const endPosition   = parsed.indexOf('<!--END-->')
