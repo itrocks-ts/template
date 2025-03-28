@@ -29,15 +29,16 @@ export class Template
 	blockStack: BlockStackEntry[] = []
 
 	// parser
-	doExpression = true
-	index        = 0
-	length       = 0
-	source       = ''
-	start        = 0
-	tagName      = ''
-	tagStack:    { tagName: string, inLiteral: boolean }[] = []
-	target       = ''
-	targetStack:   string[] = []
+	doExpression  = true
+	index         = 0
+	length        = 0
+	source        = ''
+	start         = 0
+	tagName       = ''
+	tagStack:     { tagName: string, inLiteral: boolean }[] = []
+	target        = ''
+	targetReplace = ''
+	targetStack:  string[] = []
 
 	// literal
 	doLiteral       = false
@@ -210,7 +211,7 @@ export class Template
 
 	async include(path: string, data: any)
 	{
-		const template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data)
+		const template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data) as Template
 
 		template.doExpression = this.doExpression
 		template.doHeadLinks  = true
@@ -237,6 +238,12 @@ export class Template
 
 		const beginPosition = parsed.indexOf('<!--BEGIN-->')
 		const endPosition   = parsed.indexOf('<!--END-->')
+		if ((beginPosition === -1) && (parsed[1] === '!') && parsed.startsWith('<!DOCTYPE html>')) {
+			if (this.targetReplace === '') {
+				this.targetReplace = parsed
+			}
+			return ''
+		}
 		return (beginPosition > -1)
 			? parsed.slice(beginPosition + 12, (endPosition > -1) ? endPosition : parsed.length)
 			: parsed
@@ -299,7 +306,7 @@ export class Template
 				+ this.headTitle
 				+ this.target.slice(this.target.indexOf('</title>', position))
 		}
-		return this.target
+		return (this.targetReplace !== '') ? this.targetReplace : this.target
 	}
 
 	async parseExpression(data: any, open: Open | '<', close: Close, finalClose: Final = '')
@@ -938,7 +945,7 @@ export class Template
 
 	startsExpression(char: string, open: Open = '{', close: Close = '}')
 	{
-		return RegExp('[a-z0-9"*.?\'' + open + close + this.prefixes + ']', 'i').test(char)
+		return RegExp(`[a-z0-9"'*./?` + open + close + this.prefixes + ']', 'i').test(char)
 	}
 
 	trimEndLine(string: string)
