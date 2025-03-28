@@ -13,6 +13,10 @@ type BlockStackEntry = {
 	iterations: number
 }
 
+type Close = ')' | '}'
+type Final = '' | '-->'
+type Open  = '(' | '{'
+
 export type VariableParser = [parser: string, (variable: string, data: any) => any]
 
 export const frontScripts = new SortedArray<string>()
@@ -218,7 +222,6 @@ export class Template
 		template.onTagOpen    = this.onTagOpen
 		template.onTagOpened  = this.onTagOpened
 		template.parsers      = this.parsers
-		template.prefixes     = this.prefixes
 
 		const parsed = await template.parseFile(
 			((path[0] === sep) || (path[1] === ':'))
@@ -299,10 +302,9 @@ export class Template
 		return this.target
 	}
 
-	async parseExpression(data: any, close: string, finalClose = '')
+	async parseExpression(data: any, open: Open | '<', close: Close, finalClose: Final = '')
 	{
 		const indexOut = this.index
-		let   open     = this.source[this.index]
 
 		if (this.inLiteral && !this.literalParts.length) {
 			this.targetStack.push(this.target)
@@ -521,7 +523,7 @@ export class Template
 
 			// expression
 			if ((char === '{') && this.doExpression) {
-				await this.parseExpression(data, '}')
+				await this.parseExpression(data, char, '}')
 				continue
 			}
 
@@ -598,7 +600,7 @@ export class Template
 					this.index          = tagIndex
 					this.target         = ''
 					this.inLiteral      = false
-					const condition     = await this.parseExpression(data, '}', '-->')
+					const condition     = await this.parseExpression(data, '<', '}', '-->')
 					this.blockStack.push({ blockStart, collection, condition, data, iteration, iterations })
 					let blockData  = condition ? (this.target ? data : undefined) : this.target
 					blockStart     = this.index
@@ -729,7 +731,7 @@ export class Template
 					this.index ++
 					while (' \n\r\t\f'.includes(this.source[this.index])) this.index ++
 					const attributeChar = attributeName[0]
-					const [open, close] = (
+					const [open, close]: [Open, Close] = (
 						'afhls'.includes(attributeChar)
 						&& ['action', 'formaction', 'href', 'location', 'src'].includes(attributeName)
 					) ? ['(', ')']
@@ -802,7 +804,7 @@ export class Template
 						}
 						// expression in attribute value
 						if ((char === open) && this.doExpression) {
-							await this.parseExpression(data, close)
+							await this.parseExpression(data, open, close)
 							continue
 						}
 						this.index ++
@@ -934,7 +936,7 @@ export class Template
 		this.start   = this.index
 	}
 
-	startsExpression(char: string, open = '{', close = '}')
+	startsExpression(char: string, open: Open = '{', close: Close = '}')
 	{
 		return RegExp('[a-z0-9"*.?\'' + open + close + this.prefixes + ']', 'i').test(char)
 	}
