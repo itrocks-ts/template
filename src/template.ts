@@ -838,9 +838,7 @@ export class Template
 			if (targetTagIndex > -1) {
 				this.sourceToTarget()
 				const headLink = this.target.substring(targetTagIndex)
-				if (!this.doneLinks.includes(headLink)) {
-					this.headLinks.insert(headLink)
-				}
+				this.headLinks.insert(headLink)
 			}
 
 			if (inScript) {
