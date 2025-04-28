@@ -4,13 +4,14 @@ import { SortedArray }    from '@itrocks/sorted-array'
 import { readFile }       from 'node:fs/promises'
 import { normalize, sep } from 'node:path'
 
+const done = { done: true }
+
 type BlockStackEntry = {
 	blockStart: number,
-	collection: any[],
 	condition?: boolean,
 	data:       any,
-	iteration:  number,
-	iterations: number
+	iteration:  IteratorResult<any> | { done: boolean, value?: any },
+	iterator?:  Iterator<any>
 }
 
 type Close = ')' | '}'
@@ -106,7 +107,7 @@ export class Template
 		this.headLinks.distinct = true
 
 		if (containerData) {
-			this.blockStack.push({ blockStart: 0, collection: [], data: containerData, iteration: 0, iterations: 1 })
+			this.blockStack.push({ blockStart: 0, data: containerData, iteration: done })
 		}
 	}
 
@@ -519,11 +520,10 @@ export class Template
 	async parseVars()
 	{
 		let blockStart = 0
-		let collection = []
 		let data       = this.data
 		let inHead     = false
-		let iteration  = 0
-		let iterations = 0
+		let iteration  : IteratorResult<any> | { done: boolean, value?: any } = done
+		let iterator   : Iterator<any> | undefined
 
 		while (this.index < this.length) {
 			let char = this.source[this.index]
@@ -578,17 +578,17 @@ export class Template
 					// end condition / loop block
 					if ((firstChar === 'e') && (this.source.substring(this.index, this.index + 6) === 'end-->')) {
 						this.target += this.trimEndLine(this.source.substring(this.start, tagIndex))
-						iteration ++
-						if (iteration < iterations) {
-							data       = collection[iteration]
+						iteration = iterator?.next() ?? done
+						if (!iteration.done) {
+							data       = iteration.value
 							this.index = this.start = blockStart
 							if (this.inLiteral && (this.index > this.start)) {
 								this.sourceToTarget()
 							}
 							continue
 						}
-						({ blockStart, collection, data, iteration, iterations } = this.blockStack.pop()
-							?? { blockStart: 0, collection: [], data: undefined, iteration: 0, iterations: 0 })
+						({ blockStart, data, iteration, iterator } = this.blockStack.pop()
+							?? { blockStart: 0, data: undefined, iteration: done })
 						this.index += 6
 						this.start  = this.index
 						if (this.inLiteral && (this.index > this.start)) {
@@ -608,23 +608,22 @@ export class Template
 					this.target         = ''
 					this.inLiteral      = false
 					const condition     = await this.parseExpression(data, '<', '}', '-->')
-					this.blockStack.push({ blockStart, collection, condition, data, iteration, iterations })
+					this.blockStack.push({ blockStart, condition, data, iteration, iterator })
 					let blockData  = condition ? (this.target ? data : undefined) : this.target
 					blockStart     = this.index
-					iteration      = 0
 					this.target    = backTarget
 					this.inLiteral = backInLiteral
-					if (Array.isArray(blockData)) {
-						collection = blockData
-						data       = collection[0]
-						iterations = collection.length
+					if (blockData && blockData[Symbol.iterator]) {
+						iterator  = blockData[Symbol.iterator]()
+						iteration = iterator?.next() ?? done
+						data      = iteration.value
 					}
 					else {
-						collection = []
-						data       = blockData
-						iterations = data ? 1 : 0
+						data      = blockData
+						iteration = { done: !data, value: data }
+						iterator  = undefined
 					}
-					if (!iterations) {
+					if (iteration.done) {
 						this.skipBlock()
 						continue
 					}
