@@ -1,0 +1,10 @@
+#!/bin/bash
+if [[ "$PWD" == *"/node_modules/"* ]]; then
+  DIR=~/tmp/@itrocks/template
+  mkdir -p $DIR
+  rm -rf $DIR
+  rsync -aP ./ $DIR/ --exclude='.git' --exclude='.gitignore'
+  cd $DIR || exit 1
+  npm install
+fi
+npx jest

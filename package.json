@@ -10,10 +10,10 @@
 	},
 	"description": "The W3C-valid, browser-previewable, concise, and fast HTML template engine that enables delimiter-less translations",
 	"devDependencies": {
-		"@types/jest": "^29.5",
-		"@types/node": "^22.9",
-		"jest": "^29.7",
-		"ts-jest": "^29.2",
+		"@types/jest": "^30.0",
+		"@types/node": "^24.0",
+		"jest": "^30.0",
+		"ts-jest": "^29.4",
 		"typescript": "~5.8"
 	},
 	"engines": {
@@ -66,8 +66,8 @@
 		"build": "npm run build:cjs && npm run build:esm",
 		"build:cjs": "tsc -p tsconfig.cjs.json",
 		"build:esm": "tsc -p tsconfig.esm.json",
-		"test": "jest"
+		"test": "test/test"
 	},
 	"types": "./esm/template.d.ts",
-	"version": "0.0.37"
+	"version": "0.0.39"
 }
