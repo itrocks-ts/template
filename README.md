@@ -242,6 +242,25 @@ With data `{ name: 'Good cop' }` (no color):
 <span>Good cop</span>
 ```
 
+### Conditional Attributes Block
+
+Some attributes can't be evaluated or might break W3C validation if their value contains template syntax
+(like braces or question marks).
+
+To handle such cases, you can use the reserved `data-if` and `data-end` attributes
+as a **conditional attribute block**.\
+These control attributes will **not be rendered**.\
+All attributes placed **between** `data-if` and `data-end` will be included in the output
+**only if** the `data-if` condition evaluates to a [truthy](https://developer.mozilla.org/docs/Glossary/Truthy) value.
+
+Example:
+```html
+<form data-if="{hasFileProperty}" enctype="multipart/form-data" method="post" data-end>
+```
+- `data-if` and `data-end` act as structural markers and are removed from the final output.
+- `enctype="multipart/form-data"` and `method="post"` will appear only if the `hasFileProperty` function or property
+  of the current context returns `true`.
+
 ### Conditional Blocks
 
 End your block expression with `?` to render the block only

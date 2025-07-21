@@ -727,10 +727,11 @@ export class Template
 			while (this.source[this.index] !== '>') {
 
 				// attribute name
-				const position = this.index
+				const attributePosition = this.index
 				while ((this.index < this.length) && !' =>\n\r\t\f'.includes(this.source[this.index])) this.index ++
-				const attributeName = this.source.substring(position, this.index)
+				const attributeName = this.source.substring(attributePosition, this.index)
 				while (' \n\r\t\f'.includes(this.source[this.index])) this.index ++
+				let attributeBlock = (attributeName[0] === 'd') && (attributeName === 'data-if') ? '' : undefined
 
 				// attribute value
 				if (this.source[this.index] === '=') {
@@ -771,13 +772,18 @@ export class Template
 						this.sourceToTarget()
 					}
 
-					const position   = this.index
-					const shortQuote = !(quote.length - 1)
+					const valuePosition = this.index
+					const shortQuote    = !(quote.length - 1)
+					if (shortQuote && (attributeBlock !== undefined)) {
+						attributeBlock = this.target + this.source.substring(this.start, attributePosition)
+						this.start     = this.index
+						this.target    = ''
+					}
 					while (this.index < this.length) {
 						const char = this.source[this.index]
 						// end of attribute value
 						if (shortQuote ? (char === quote) : quote.includes(char)) {
-							const attributeValue = this.source.substring(position, this.index)
+							const attributeValue = this.source.substring(valuePosition, this.index)
 							if (inInput && !hasTypeSubmit) {
 								hasTypeSubmit = (attributeChar === 't') && (attributeValue[0] === 's')
 									&& (attributeName === 'type') && (attributeValue === 'submit')
@@ -816,11 +822,32 @@ export class Template
 						this.index ++
 					}
 				}
-				else if (this.onAttribute) this.onAttribute(attributeName, '')
+				else {
+					if (this.onAttribute) this.onAttribute(attributeName, '')
+					if ((attributeName[0] === 'd') && (attributeName === 'data-end')) {
+						this.index = attributePosition
+						this.sourceToTarget()
+						this.index += attributeName.length
+						this.start  = this.index
+					}
+				}
 
 				// next attribute
 				while (' \n\r\t\f'.includes(this.source[this.index])) this.index ++
+
+				if (attributeBlock !== undefined) {
+					if (!this.target) {
+						this.index = this.source.indexOf('data-end', this.index) + 8
+						if (this.index < 8) {
+							throw 'Missing data-end matching data-if at position ' + attributePosition
+							+ ' into template file ' + this.filePath + sep + this.fileName
+						}
+					}
+					this.start  = this.index
+					this.target = attributeBlock
+				}
 			}
+
 			this.index ++
 			if (this.onTagOpened) this.onTagOpened.call(this, this.tagName)
 
