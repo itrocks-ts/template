@@ -505,7 +505,7 @@ export class Template
 		}
 		for (const [prefix, callback] of this.parsers) {
 			if (firstChar === prefix) {
-				return callback(variable, data)
+				return await callback(variable, data)
 			}
 		}
 		if (data[variable] === undefined) {
