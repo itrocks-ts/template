@@ -1,8 +1,17 @@
-import { appDir }         from '@itrocks/app-dir'
-import { Str }            from '@itrocks/rename'
-import { SortedArray }    from '@itrocks/sorted-array'
-import { readFile }       from 'node:fs/promises'
-import { normalize, sep } from 'node:path'
+import { appDir }      from '@itrocks/app-dir'
+import { Str }         from '@itrocks/rename'
+import { SortedArray } from '@itrocks/sorted-array'
+import { readFile }    from 'node:fs/promises'
+import { normalize }   from 'node:path'
+import { sep }         from 'node:path'
+
+export type Dependencies = {
+	toString: (value: any) => Promise<string>
+}
+
+export const depends: Dependencies = {
+	toString: async (value: any) => '' + value
+}
 
 const done = { done: true }
 
@@ -22,6 +31,11 @@ export type VariableParser = [parser: string, (variable: string, data: any) => a
 
 export const frontScripts = new SortedArray<string>()
 frontScripts.distinct = true
+
+export function templateDependsOn(dependencies: Partial<Dependencies>)
+{
+	Object.assign(depends, dependencies)
+}
 
 export class Template
 {
@@ -509,7 +523,7 @@ export class Template
 			}
 		}
 		if (data[variable] === undefined) {
-			data = new Str(data)
+			data = new Str(await depends.toString(data))
 		}
 		let value = data[variable]
 		return (((typeof value)[0] === 'f') && ((value + '')[0] !== 'c'))
