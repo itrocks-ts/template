@@ -24,7 +24,7 @@ type BlockStackEntry = {
 }
 
 type Close = ')' | '}'
-type Final = '' | '-->'
+type Final = ''  | '-->'
 type Open  = '(' | '{'
 
 export type VariableParser = [parser: string, (variable: string, data: any) => any]
@@ -35,6 +35,13 @@ frontScripts.distinct = true
 export function templateDependsOn(dependencies: Partial<Dependencies>)
 {
 	Object.assign(depends, dependencies)
+}
+
+export class HtmlResponse
+{
+	public dependencies: string[]
+	constructor(public html: string, ...dependencies: string[]) { this.dependencies = dependencies }
+	toString() { return this.html }
 }
 
 export class Template
@@ -173,6 +180,30 @@ export class Template
 		this.onTagOpen   = (name: string) => console.log('tag.open =', name)
 		this.onTagOpened = (name: string) => console.log('tag.opened =', name)
 		this.onTagClose  = (name: string) => console.log('tag.closed =', name)
+	}
+
+	embedHtmlResponse(htmlResponse: HtmlResponse)
+	{
+		for (let dependency of htmlResponse.dependencies) {
+			if (dependency[0] === '<') {
+				const script = dependency.match(/<script[^>]*\bsrc=["']([^"']+)["']/i)?.[1]
+				if (script) {
+					frontScripts.insert(script)
+				}
+				this.headLinks.insert(dependency)
+				continue
+			}
+			dependency = normalize(dependency).slice(appDir.length)
+			switch (dependency.slice(dependency.lastIndexOf('.') + 1)) {
+				case 'css':
+					this.headLinks.insert('<link href="' + dependency + '" rel="stylesheet">')
+					continue
+				case 'js':
+					frontScripts.insert(dependency)
+					this.headLinks.insert('<script src="' + dependency + '" type="module"></script>')
+					continue
+			}
+		}
 	}
 
 	getCleanContext()
@@ -489,6 +520,9 @@ export class Template
 		this.blockBack = 0
 		for (const variable of expression.split('.')) {
 			data = await this.parseVariable(variable, data)
+		}
+		if (data instanceof HtmlResponse) {
+			this.embedHtmlResponse(data)
 		}
 		return data
 	}
