@@ -410,6 +410,11 @@ Any expression starting with `/`, `./` or `../` is considered a template include
 </div>
 ```
 
+The path prefix defines how the file location is resolved:
+- `./` refers to the directory of the current template file
+- `../` refers to the parent directory of the current template file
+- `/` refers to the root of the current project (not the filesystem root)
+
 The default contextual data is the one in the current scope.
 
 You can pass parent or sub-data to your included template as an alternative context:

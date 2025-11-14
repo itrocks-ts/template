@@ -295,6 +295,13 @@ export class Template
 			: parsed
 	}
 
+	includePath(filePath: string)
+	{
+		return (filePath[0] === '/')
+			? (appDir + ((filePath[1] === '@') ? '/node_modules' : '') + filePath)
+			: filePath
+	}
+
 	isContextClean()
 	{
 		const clean   = this.getCleanContext()
@@ -492,16 +499,19 @@ export class Template
 					expressionEnd --
 				}
 				const blockStack = this.blockStack
-				return this.include(expression.slice(0, expressionEnd), blockStack[blockStack.length - blockBack].data)
+				return this.include(
+					this.includePath(expression.slice(0, expressionEnd)),
+					blockStack[blockStack.length - blockBack].data
+				)
 			}
 			if (expression[expressionEnd] === ')') {
 				const openPosition = expression.lastIndexOf('(')
 				return this.include(
-					expression.slice(0, openPosition),
+					this.includePath(expression.slice(0, openPosition)),
 					await this.parsePath(expression.slice(openPosition + 1, expression.length - 1), data)
 				)
 			}
-			return this.include(expression, data)
+			return this.include(this.includePath(expression), data)
 		}
 		let onlyDots = true
 		for (const c of expression) {
