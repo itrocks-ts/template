@@ -411,9 +411,10 @@ Any expression starting with `/`, `./` or `../` is considered a template include
 ```
 
 The path prefix defines how the file location is resolved:
-- `./` refers to the directory of the current template file
-- `../` refers to the parent directory of the current template file
-- `/` refers to the root of the current project (not the filesystem root)
+- `./` refers to the directory of the current template file,
+- `../` refers to the parent directory of the current template file,
+- `/` refers to the project root (not the filesystem root),
+- `/@scope` refers to `/node_modules/@scope`, resolved from the project root. 
 
 The default contextual data is the one in the current scope.
 
