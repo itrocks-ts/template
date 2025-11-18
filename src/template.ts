@@ -169,7 +169,10 @@ export class Template
 		if (text !== '') {
 			text = (parts && /^(\$[1-9][0-9]*)+$/.test(text))
 				? parts.join('')
-				: this.applyLiterals(text, parts?.map(part => ((typeof part)[0] === 's') ? this.applyLiterals(part) : part))
+				: this.applyLiterals(
+					text,
+					parts?.map(part => (((typeof part)[0] === 's') && (part[0] !== '<')) ? this.applyLiterals(part) : part)
+				)
 		}
 		return original.substring(0, left) + text + original.substring(right)
 	}
