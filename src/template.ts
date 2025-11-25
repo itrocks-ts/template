@@ -139,7 +139,7 @@ export class Template
 
 	closeTag(shouldInLiteral: boolean, targetIndex: number)
 	{
-		shouldInLiteral ||= this.inLiteral;
+		shouldInLiteral ||= this.inLiteral
 		Object.assign(this, this.tagStack.pop() ?? { tagName: '', inLiteral: false })
 		if (this.onTagClose) this.onTagClose.call(this, this.tagName)
 		if ((this.tagName[0] === 'a') && (this.tagName === 'address')) {
