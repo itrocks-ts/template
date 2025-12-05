@@ -13,6 +13,8 @@ export const depends: Dependencies = {
 	toString: async (value: any) => '' + value
 }
 
+const DEBUG = false
+
 const done = { done: true }
 
 type BlockStackEntry = {
@@ -46,8 +48,9 @@ export class HtmlResponse
 
 export class Template
 {
+
 	// block stack
-	blockBack = 0
+	blockBack   = 0
 	blockStack: BlockStackEntry[] = []
 
 	// parser
@@ -63,23 +66,21 @@ export class Template
 	targetStack:  string[] = []
 
 	// literal
-	doLiteral       = false
-	inLiteral       = false
+	doLiteral         = false
+	inLiteral         = false
 	literalParts:     string[]   = []
 	literalPartStack: string[][] = []
-	lockLiteral     = false
+	lockLiteral       = false
 
 	// html head
 	addLinks    = new SortedArray<string>()
-	doHeadLinks = false
 	doneLinks   = new SortedArray<string>()
-	headLinks   = new SortedArray<string>()
-	headTitle?:   string
+	headTitle?: string
 
 	// file
 	fileName?: string
 	filePath?: string
-	included = false
+	included   = false
 
 	// Inline elements are replaced by $1 when in literal.
 	inlineElements = new SortedArray(
@@ -118,14 +119,13 @@ export class Template
 	onTagClose?:  (name: string) => void
 
 	// Additional parsers
-	parsers:   VariableParser[] = []
+	parsers: VariableParser[] = []
 	prefixes = ''
 
 	constructor(public data?: any, public containerData?: any)
 	{
 		this.addLinks.distinct  = true
 		this.doneLinks.distinct = true
-		this.headLinks.distinct = true
 
 		if (containerData) {
 			this.blockStack.push({ blockStart: 0, data: containerData, iteration: done })
@@ -191,19 +191,22 @@ export class Template
 			if (dependency[0] === '<') {
 				const script = dependency.match(/<script[^>]*\bsrc=["']([^"']+)["']/i)?.[1]
 				if (script) {
-					frontScripts.insert(script)
+					frontScripts.push(script)
 				}
-				this.headLinks.insert(dependency)
+				if (DEBUG) console.log('addLink(', dependency, ')')
+				this.addLinks.push(dependency)
 				continue
 			}
 			dependency = normalize(dependency).slice(appDir.length)
 			switch (dependency.slice(dependency.lastIndexOf('.') + 1)) {
 				case 'css':
-					this.headLinks.insert('<link href="' + dependency + '" rel="stylesheet">')
+					if (DEBUG) console.log('addLink(', '<link href="' + dependency + '" rel="stylesheet">', ')')
+					this.addLinks.push('<link href="' + dependency + '" rel="stylesheet">')
 					continue
 				case 'js':
-					frontScripts.insert(dependency)
-					this.headLinks.insert('<script src="' + dependency + '" type="module"></script>')
+					frontScripts.push(dependency)
+					if (DEBUG) console.log('addLink(', '<script src="' + dependency + '" type="module"></script>', ')')
+					this.addLinks.push('<script src="' + dependency + '" type="module"></script>')
 					continue
 			}
 		}
@@ -213,15 +216,12 @@ export class Template
 	{
 		const addLinks     = new SortedArray<string>
 		const doneLinks    = new SortedArray<string>
-		const headLinks    = new SortedArray<string>
 		addLinks.distinct  = true
 		doneLinks.distinct = true
-		headLinks.distinct = true
 		return {
-			addLinks:         addLinks,
-			doHeadLinks:      false,
-			doneLinks:        doneLinks,
-			headLinks:        headLinks,
+			addLinks,
+			doneLinks,
+			included:         false,
 			index:            this.length,
 			inLiteral:        this.doLiteral,
 			length:           this.source.length,
@@ -243,9 +243,8 @@ export class Template
 	{
 		return {
 			addLinks:         this.addLinks,
-			doHeadLinks:      this.doHeadLinks,
 			doneLinks:        this.doneLinks,
-			headLinks:        this.headLinks,
+			included:         this.included,
 			index:            this.index,
 			inLiteral:        this.inLiteral,
 			length:           this.length,
@@ -262,10 +261,10 @@ export class Template
 	{
 		const template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data) as Template
 
+		template.addLinks     = this.addLinks
 		template.doExpression = this.doExpression
-		template.doHeadLinks  = true
 		template.doLiteral    = this.doLiteral
-		template.doneLinks    = this.headLinks
+		template.doneLinks    = this.doneLinks
 		template.included     = true
 		template.onAttribute  = this.onAttribute
 		template.onTagClose   = this.onTagClose
@@ -279,16 +278,13 @@ export class Template
 				: (this.filePath + sep + path)
 		)
 
-		if (!this.doHeadLinks) {
-			this.addLinks.push(...template.headLinks)
-			this.headTitle = template.headTitle
-		}
-		this.headLinks.push(...template.headLinks)
+		this.headTitle = template.headTitle
 
 		const beginPosition = parsed.indexOf('<!--BEGIN-->')
-		const endPosition   = parsed.indexOf('<!--END-->')
-		if ((beginPosition === -1) && (parsed[1] === '!') && parsed.startsWith('<!DOCTYPE html>')) {
+		const endPosition   = parsed.lastIndexOf('<!--END-->')
+		if ((beginPosition < 0) && (parsed[1] === '!') && parsed.startsWith('<!DOCTYPE html>')) {
 			if (this.targetReplace === '') {
+				if (DEBUG) console.log('! targetReplace', path)
 				this.targetReplace = parsed
 			}
 			return ''
@@ -309,13 +305,10 @@ export class Template
 	{
 		const clean   = this.getCleanContext()
 		const context = this.getContext()
-		return context.doHeadLinks           === clean.doHeadLinks
-			&& context.addLinks.distinct       === clean.addLinks.distinct
+		return context.addLinks.distinct     === clean.addLinks.distinct
 			&& context.addLinks.length         === clean.addLinks.length
 			&& context.doneLinks.distinct      === clean.doneLinks.distinct
-			&& context.doneLinks.length        === clean.doneLinks.length
-			&& context.headLinks.distinct      === clean.headLinks.distinct
-			&& context.headLinks.length        === clean.headLinks.length
+			&& context.included                === clean.included
 			&& context.index                   === clean.index
 			&& context.inLiteral               === clean.inLiteral
 			&& context.literalPartStack.length === clean.literalPartStack.length
@@ -338,10 +331,17 @@ export class Template
 			combined     = this.combineLiterals(this.source.substring(this.start, index))
 			this.target += combined
 		}
-		if (isTitle && this.doHeadLinks) {
+		if (isTitle && this.included) {
 			this.headTitle = combined
 		}
 		this.start = index
+	}
+
+	normalizeLink(link: string)
+	{
+		if (link[0] === '/') return link
+		const result = normalize(this.filePath + sep + link).substring(appDir.length)
+		return (sep === '/') ? result : result.replaceAll(sep, '/')
 	}
 
 	async parseBuffer(buffer: string)
@@ -349,18 +349,36 @@ export class Template
 		this.prefixes = this.parsers.map(([prefix]) => prefix).join('')
 		this.setSource(buffer)
 		await this.parseVars()
-		if (this.doHeadLinks) {
+		if (this.included) {
 			return this.target
 		}
 		if (this.addLinks.length) {
-			const position = this.target.lastIndexOf('>', this.target.indexOf('</head>')) + 1
-			this.target = this.target.slice(0, position) + '\n\t' + this.addLinks.join('\n\t') + this.target.slice(position)
-		}
-		if (this.headTitle && !this.included) {
-			const position = this.target.indexOf('>', this.target.indexOf('<title') + 6) + 1
-			this.target    = this.target.slice(0, position)
-				+ this.headTitle
-				+ this.target.slice(this.target.indexOf('</title>', position))
+			let   addLink: string | undefined
+			const addLinks = new Array<string>
+			while (addLink = this.addLinks.shift()) {
+				for (const attribute of ['href', 'src']) {
+					let start = addLink.indexOf(attribute + '=')
+					if (start < 0) continue
+					start += attribute.length
+					while ((addLink[start] !== '"') && (addLink[start] !== "'")) {
+						start ++
+					}
+					const quote = addLink[start++]
+					const stop  = addLink.indexOf(quote, start)
+					const link  = addLink.substring(start, stop)
+					if (DEBUG) console.log('check(', link, ')')
+					if (!this.doneLinks.includes(link)) {
+						if (DEBUG) console.log('+ addLink(', addLink, ')')
+						if (DEBUG) console.log('+ doneLink(', link, ')')
+						addLinks.push(addLink)
+						this.doneLinks.push(link)
+					}
+				}
+			}
+			if (addLinks.length) {
+				const position = this.target.lastIndexOf('>', this.target.indexOf('</head>')) + 1
+				this.target = this.target.slice(0, position) + '\n\t' + addLinks.join('\n\t') + this.target.slice(position)
+			}
 		}
 		return (this.targetReplace !== '') ? this.targetReplace : this.target
 	}
@@ -472,20 +490,36 @@ export class Template
 		return conditional
 	}
 
-	async parseFile(fileName: string, containerFileName?: string): Promise<string>
+	async parseFile(fileName: string, containerFileName?: string | false): Promise<string>
 	{
-		if (containerFileName && !this.included) {
+		if (DEBUG) console.log('----- parseFile',
+			containerFileName ? 'contained': 'fetched',
+			this.included ? 'included' : 'final',
+			fileName
+		)
+
+		if (containerFileName) {
 			const data = this.data
 			this.data  = Object.assign({ content: () => this.include(fileName, data) }, this.blockStack[0]?.data)
 			return this.parseFile(normalize(containerFileName))
 		}
 		this.fileName = fileName.substring(fileName.lastIndexOf(sep) + 1)
 		this.filePath = fileName.substring(0, fileName.lastIndexOf(sep))
-		return this.parseBuffer(await readFile(fileName, 'utf-8'))
+		let  target   = await this.parseBuffer(await readFile(fileName, 'utf-8'))
+
+		if (containerFileName && this.headTitle) {
+			const position = target.indexOf('>', target.indexOf('<title') + 6) + 1
+			target         = target.slice(0, position)
+				+ this.headTitle
+				+ target.slice(target.indexOf('</title>', position))
+		}
+
+		return target
 	}
 
 	async parsePath(expression: string, data: any): Promise<any>
 	{
+		if (DEBUG) console.log('parsePath', expression)
 		if (expression === '') {
 			return undefined
 		}
@@ -542,6 +576,7 @@ export class Template
 
 	async parseVariable(variable: string, data: any)
 	{
+		if (DEBUG) console.log('parseVariable', variable, 'in', data)
 		if (variable === '') {
 			let dataBack: BlockStackEntry
 			do {
@@ -617,19 +652,11 @@ export class Template
 					if (
 						!this.doExpression
 						|| !this.startsExpression(firstChar)
-						|| (
-							(firstChar === 'B')
-							&& this.included
-							&& (this.source.substring(this.index, this.index + 8) === 'BEGIN-->')
-						)
-						|| (
-							(firstChar === 'E')
-							&& this.included
-							&& (this.source.substring(this.index, this.index + 6) === 'END-->')
-						)
+						|| ((firstChar === 'B') && (this.source.substring(this.index, this.index + 8) === 'BEGIN-->'))
+						|| ((firstChar === 'E') && (this.source.substring(this.index, this.index + 6) === 'END-->'))
 					) {
 						this.index = this.source.indexOf('-->', this.index) + 3
-						if (this.index === 2) break
+						if (this.index < 3) break
 						if (this.inLiteral && (this.index > this.start)) {
 							this.sourceToTarget()
 						}
@@ -697,7 +724,7 @@ export class Template
 				// cdata section
 				if ((char === '[') && (this.source.substring(this.index, this.index + 6) === 'CDATA[')) {
 					this.index = this.source.indexOf(']]>', this.index + 6) + 3
-					if (this.index === 2) break
+					if (this.index < 3) break
 				}
 
 				// DOCTYPE
@@ -853,23 +880,23 @@ export class Template
 								this.literalTarget(this.index)
 							}
 							if (inLinkHRef && attributeValue.endsWith('.css')) {
-								let frontStyle = normalize(this.filePath + sep + this.source.substring(this.start, this.index))
-									.substring(appDir.length)
-								if (sep !== '/') {
-									frontStyle = frontStyle.replaceAll(sep, '/')
+								let frontStyle = this.normalizeLink(this.source.substring(this.start, this.index))
+								this.target   += frontStyle
+								this.start     = this.index
+								if (!(inHead && this.included)) {
+									if (DEBUG) console.log('doneLink(', frontStyle, ')')
+									this.doneLinks.push(frontStyle)
 								}
-								this.target += frontStyle
-								this.start = this.index
 							}
 							if (inScriptSrc && attributeValue.endsWith('.js')) {
-								let frontScript = normalize(this.filePath + sep + this.source.substring(this.start, this.index))
-									.substring(appDir.length)
-								if (sep !== '/') {
-									frontScript = frontScript.replaceAll(sep, '/')
-								}
-								frontScripts.insert(frontScript)
+								let frontScript = this.normalizeLink(this.source.substring(this.start, this.index))
+								frontScripts.push(frontScript)
 								this.target += frontScript
 								this.start   = this.index
+								if (!(inHead && this.included)) {
+									if (DEBUG) console.log('doneLink(', frontScript, ')')
+									this.doneLinks.push(frontScript)
+								}
 							}
 							if (this.onAttribute) this.onAttribute(attributeName, attributeValue)
 							if (char !== '>') this.index ++
@@ -916,16 +943,17 @@ export class Template
 			if (inScript) {
 				if (this.onTagClose) this.onTagClose.call(this, 'script')
 				this.index = this.source.indexOf('</script>', this.index) + 9
-				if (this.index === 8) break
+				if (this.index < 9) break
 				if (this.inLiteral && (this.index > this.start)) {
 					this.sourceToTarget()
 				}
 			}
 
-			if (targetTagIndex > -1) {
+			if ((targetTagIndex > -1) && this.included) {
 				this.sourceToTarget()
 				const headLink = this.target.substring(targetTagIndex)
-				this.headLinks.insert(headLink)
+				if (DEBUG) console.log('addLink(', headLink, ')')
+				this.addLinks.push(headLink)
 			}
 
 			if (inScript) {
