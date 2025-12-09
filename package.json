@@ -11,10 +11,10 @@
 	"description": "The W3C-valid, browser-previewable, concise, and fast HTML template engine that enables delimiter-less translations",
 	"devDependencies": {
 		"@types/jest": "^30.0",
-		"@types/node": "^24.0",
-		"jest": "^30.0",
+		"@types/node": "^24.10",
+		"jest": "^30.2",
 		"ts-jest": "^29.4",
-		"typescript": "~5.8"
+		"typescript": "~5.9"
 	},
 	"engines": {
 		"node": ">=18"
@@ -69,5 +69,5 @@
 		"test": "test/test"
 	},
 	"types": "./esm/template.d.ts",
-	"version": "0.1.5"
+	"version": "0.1.6"
 }
