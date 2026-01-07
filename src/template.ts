@@ -604,8 +604,12 @@ export class Template
 				return await callback(variable, data)
 			}
 		}
-		if (data[variable] === undefined) {
-			data = new Str(await depends.toString(data))
+		if (((typeof data)[0] === 'o') ? !(variable in data) : (variable[data] === undefined)) {
+			const asStr = new Str(await depends.toString(data))
+			if (DEBUG) console.log('is', variable, 'in', asStr, '?')
+			if (variable in asStr) {
+				data = asStr
+			}
 		}
 		let value = data[variable]
 		return (((typeof value)[0] === 'f') && ((value + '')[0] !== 'c'))
