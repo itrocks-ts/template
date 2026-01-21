@@ -341,7 +341,9 @@ export class Template
 	{
 		if (link[0] === '/') return link
 		const result = normalize(this.filePath + sep + link).substring(appDir.length)
-		return (sep === '/') ? result : result.replaceAll(sep, '/')
+		return (((sep === '/') ? result : result.replaceAll(sep, '/')))
+			.replace(/^\/node_modules\/@itrocks\//, '/@itrocks/')
+			.replace(/^\/node_modules\//, '/lib/')
 	}
 
 	async parseBuffer(buffer: string)
