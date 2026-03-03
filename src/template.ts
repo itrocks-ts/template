@@ -259,7 +259,7 @@ export class Template
 
 	async include(path: string, data: any)
 	{
-		const template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data) as Template
+		const template: Template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data)
 
 		template.addLinks     = this.addLinks
 		template.doExpression = this.doExpression
