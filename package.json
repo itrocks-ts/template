@@ -10,11 +10,8 @@
 	},
 	"description": "The W3C-valid, browser-previewable, concise, and fast HTML template engine that enables delimiter-less translations",
 	"devDependencies": {
-		"@types/jest": "^30.0",
 		"@types/node": "^24.10",
-		"jest": "^30.2",
-		"ts-jest": "^29.4",
-		"typescript": "^6.0"
+		"typescript": "^7.0"
 	},
 	"engines": {
 		"node": ">=24"
@@ -27,13 +24,6 @@
 		"!*.map"
 	],
 	"homepage": "it.rocks",
-	"jest": {
-		"preset": "ts-jest",
-		"testEnvironment": "node",
-		"testMatch": [
-			"**/?(*.)+(spec|test).ts"
-		]
-	},
 	"keywords": [
 		"backend",
 		"browser",
@@ -61,7 +51,7 @@
 	},
 	"scripts": {
 		"build": "tsc",
-		"test": "test/test"
+		"test": "npm run build && node --test --test-isolation=none test/*.test.js"
 	},
-	"version": "0.2.2"
+	"version": "0.2.3"
 }

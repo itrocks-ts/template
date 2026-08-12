@@ -1,4 +1,6 @@
-import { Template } from '../cjs/template'
+const assert = require('node:assert/strict')
+const { describe, it } = require('node:test')
+const { Template } = require('../cjs/template')
 
 describe('parseVars', () => {
 	const template = new Template({
@@ -10,15 +12,15 @@ describe('parseVars', () => {
 
 	it('conditionFalse', async () => {
 		template.setSource('<article data-id="{?id0}" data-another="{one}"></article>')
-		expect(await template.parseVars()).toEqual('<article data-another="found"></article>')
+		assert.deepEqual(await template.parseVars(), '<article data-another="found"></article>')
 	})
 	it('conditionTrue', async () => {
 		template.setSource('<article data-id="{?id1}" data-another="{one}"></article>')
-		expect(await template.parseVars()).toEqual('<article data-id="1" data-another="found"></article>')
+		assert.deepEqual(await template.parseVars(), '<article data-id="1" data-another="found"></article>')
 	})
 	it('empty', async () => {
 		template.setSource('')
-		expect(await template.parseVars()).toEqual('')
+		assert.deepEqual(await template.parseVars(), '')
 	})
 	it('numLoop', async () => {
 		template.setSource(`
@@ -28,7 +30,7 @@ describe('parseVars', () => {
 				<!--end-->
 			</ul>
 		`)
-		expect(await template.parseVars()).toEqual(`
+		assert.deepEqual(await template.parseVars(), `
 			<ul>
 				<li>Hello1</li>
 				<li>Hello2</li>
