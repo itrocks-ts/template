@@ -92,7 +92,7 @@ export class Template
 
 	// These attribute values are literals.
 	literalAttributes = new SortedArray(
-		'alt', 'enterkeyhint', 'label', 'lang', 'placeholder', 'srcdoc', 'title'
+		'alt', 'aria-label', 'enterkeyhint', 'label', 'lang', 'placeholder', 'srcdoc', 'title'
 	)
 
 	// These element contents are literals.

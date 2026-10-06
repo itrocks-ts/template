@@ -460,6 +460,9 @@ You can apply translations via a plugin without having to mark texts explicitly.
 Composite translations, where certain parts of a phrase are replaced by translated elements or non-literal data,
 are supported.
 
+Textual attributes are literals too: `alt`, `aria-label`, `enterkeyhint`, `label`, `lang`, `placeholder`, `srcdoc` and
+`title` are passed to [`applyLiterals()`](#internationalization-i18n) while structural attributes remain unchanged.
+
 Example of a custom template class that applies translations:
 ```ts
 import { Template } from '@itrocks/template'

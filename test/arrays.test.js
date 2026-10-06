@@ -9,6 +9,7 @@ describe('arrays', () => {
 	})
 	it('literalAttributes', () => {
 		assert.equal(template.literalAttributes.isSorted(), true)
+		assert.equal(template.literalAttributes.includes('aria-label'), true)
 	})
 	it('literalElements', () => {
 		assert.equal(template.literalElements.isSorted(), true)
