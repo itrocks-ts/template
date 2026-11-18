@@ -49,6 +49,10 @@ export class HtmlResponse
 export class Template
 {
 
+	applicationPath = (path: string): string => path
+	publicUrl       = (path: string): string => path
+	urlAttributes   = ['action', 'formaction', 'href', 'location', 'poster', 'src']
+
 	// block stack
 	blockBack   = 0
 	blockStack: BlockStackEntry[] = []
@@ -191,7 +195,7 @@ export class Template
 			if (dependency[0] === '<') {
 				const script = dependency.match(/<script[^>]*\bsrc=["']([^"']+)["']/i)?.[1]
 				if (script) {
-					frontScripts.push(script)
+					frontScripts.push(this.applicationPath(script))
 				}
 				if (DEBUG) console.log('addLink(', dependency, ')')
 				this.addLinks.push(dependency)
@@ -261,16 +265,19 @@ export class Template
 	{
 		const template: Template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data)
 
-		template.addLinks     = this.addLinks
-		template.doExpression = this.doExpression
-		template.doLiteral    = this.doLiteral
-		template.doneLinks    = this.doneLinks
-		template.included     = true
-		template.onAttribute  = this.onAttribute
-		template.onTagClose   = this.onTagClose
-		template.onTagOpen    = this.onTagOpen
-		template.onTagOpened  = this.onTagOpened
-		template.parsers      = this.parsers
+		template.addLinks       = this.addLinks
+		template.applicationPath= this.applicationPath
+		template.doExpression   = this.doExpression
+		template.doLiteral      = this.doLiteral
+		template.doneLinks      = this.doneLinks
+		template.included       = true
+		template.onAttribute    = this.onAttribute
+		template.onTagClose     = this.onTagClose
+		template.onTagOpen      = this.onTagOpen
+		template.onTagOpened    = this.onTagOpened
+		template.parsers        = this.parsers
+		template.publicUrl      = this.publicUrl
+		template.urlAttributes  = this.urlAttributes
 
 		const parsed = await template.parseFile(
 			((path[0] === sep) || (path[1] === ':'))
@@ -339,7 +346,7 @@ export class Template
 
 	normalizeLink(link: string)
 	{
-		if (link[0] === '/') return link
+		if ((link[0] === '/') || /^[a-z][a-z\d+.-]*:/i.test(link)) return this.applicationPath(link)
 		const result = normalize(this.filePath + sep + link).substring(appDir.length)
 		return (((sep === '/') ? result : result.replaceAll(sep, '/')))
 			.replace(/^\/node_modules\/@itrocks\//, '/@itrocks/')
@@ -367,7 +374,8 @@ export class Template
 					}
 					const quote = addLink[start++]
 					const stop  = addLink.indexOf(quote, start)
-					const link  = addLink.substring(start, stop)
+					const link  = this.publicUrl(addLink.substring(start, stop))
+					addLink = addLink.slice(0, start) + link + addLink.slice(stop)
 					if (DEBUG) console.log('check(', link, ')')
 					if (!this.doneLinks.includes(link)) {
 						if (DEBUG) console.log('+ addLink(', addLink, ')')
@@ -437,7 +445,18 @@ export class Template
 				}
 				const expression = this.target + this.source.substring(this.start, this.index - minus)
 				const lastTarget = this.targetStack.pop() as string
-				const parsed     = await this.parsePath(expression, data)
+				let parsed       = await this.parsePath(expression, data)
+				const html = (parsed instanceof HtmlResponse) ? parsed.html : parsed
+				if ((typeof html === 'string') && /<[a-z]/i.test(html) && (this.publicUrl('/') !== '/')) {
+					const template = new Template({})
+					template.applicationPath = this.applicationPath
+					template.doExpression = false
+					template.filePath = this.filePath
+					template.publicUrl = this.publicUrl
+					template.urlAttributes = this.urlAttributes
+					const prefix = '<html><head></head><body>', suffix = '</body></html>'
+					parsed = (await template.parseBuffer(prefix + html + suffix)).slice(prefix.length, -suffix.length)
+				}
 				this.index      += (char === close) ? 1 : finalClose.length
 				this.start       = this.index
 				this.target      = ''
@@ -862,9 +881,11 @@ export class Template
 
 					const inLinkHRef  = inLink   && (attributeChar === 'h') && (attributeName === 'href')
 					const inScriptSrc = inScript && (attributeChar === 's') && (attributeName === 'src')
-					if ((inLinkHRef || inScriptSrc || this.inLiteral) && (this.index > this.start)) {
+					const inUrl = this.urlAttributes.includes(attributeName)
+					if ((inUrl || this.inLiteral) && (this.index > this.start)) {
 						this.sourceToTarget()
 					}
+					const urlStart = this.target.length
 
 					const valuePosition = this.index
 					const shortQuote    = !(quote.length - 1)
@@ -891,7 +912,7 @@ export class Template
 								this.start     = this.index
 								if (!(inHead && this.included)) {
 									if (DEBUG) console.log('doneLink(', frontStyle, ')')
-									this.doneLinks.push(frontStyle)
+									this.doneLinks.push(this.publicUrl(frontStyle))
 								}
 							}
 							if (inScriptSrc && attributeValue.endsWith('.js')) {
@@ -901,8 +922,12 @@ export class Template
 								this.start   = this.index
 								if (!(inHead && this.included)) {
 									if (DEBUG) console.log('doneLink(', frontScript, ')')
-									this.doneLinks.push(frontScript)
+									this.doneLinks.push(this.publicUrl(frontScript))
 								}
+							}
+							if (inUrl) {
+								this.sourceToTarget()
+								this.target = this.target.slice(0, urlStart) + this.publicUrl(this.target.slice(urlStart))
 							}
 							if (this.onAttribute) this.onAttribute(attributeName, attributeValue)
 							if (char !== '>') this.index ++

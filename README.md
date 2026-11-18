@@ -110,6 +110,18 @@ You can write your pages in your primary language and apply translations automat
 
 ## Syntax and Detailed Features
 
+### Public URLs
+
+`template.publicUrl` is an optional `(path: string) => string` callback, defaulting to the identity function.
+It converts rendered URL attribute values, including evaluated expressions, included templates, generated controls
+and embedded asset dependencies. Script discovery retains application-relative paths.
+`template.applicationPath` provides the inverse conversion for recognising already prefixed asset URLs.
+
+`template.urlAttributes` lists the attributes using that callback: `action`, `formaction`, `href`, `location`, `poster`
+and `src`. Integrations can append their own URL-valued data attributes. Both settings are inherited by includes.
+
+The it.rocks framework binds these settings from the current request automatically.
+
 ### Delimiters Outside of HTML element tags 
 
 **Simple Expressions**: Use braces `{expression}`.
