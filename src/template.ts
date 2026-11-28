@@ -46,6 +46,11 @@ export class HtmlResponse
 	toString() { return this.html }
 }
 
+class IncludedHtml
+{
+	constructor(readonly html: string) {}
+}
+
 export class Template
 {
 
@@ -139,6 +144,13 @@ export class Template
 		}
 	}
 
+	private addDependency(link: string)
+	{
+		this.addLinks.push(link.replace(/(\s(?:href|src)\s*=\s*)(["'])(.*?)\2/g, (_match, attribute, quote, url) =>
+			attribute + quote + this.publicUrl(url) + quote
+		))
+	}
+
 	applyLiterals(text: string, parts: string[] = [])
 	{
 		return text.replace(/\$([0-9]+)/g, (_, index) => parts[+index])
@@ -201,19 +213,19 @@ export class Template
 					frontScripts.push(this.applicationPath(script))
 				}
 				if (DEBUG) console.log('addLink(', dependency, ')')
-				this.addLinks.push(dependency)
+				this.addDependency(dependency)
 				continue
 			}
 			dependency = normalize(dependency).slice(appDir.length)
 			switch (dependency.slice(dependency.lastIndexOf('.') + 1)) {
 				case 'css':
 					if (DEBUG) console.log('addLink(', '<link href="' + dependency + '" rel="stylesheet">', ')')
-					this.addLinks.push('<link href="' + dependency + '" rel="stylesheet">')
+					this.addDependency('<link href="' + dependency + '" rel="stylesheet">')
 					continue
 				case 'js':
 					frontScripts.push(dependency)
 					if (DEBUG) console.log('addLink(', '<script src="' + dependency + '" type="module"></script>', ')')
-					this.addLinks.push('<script src="' + dependency + '" type="module"></script>')
+					this.addDependency('<script src="' + dependency + '" type="module"></script>')
 					continue
 			}
 		}
@@ -370,25 +382,12 @@ export class Template
 			let   addLink: string | undefined
 			const addLinks = new Array<string>
 			while (addLink = this.addLinks.shift()) {
-				for (const attribute of ['href', 'src']) {
-					let start = addLink.indexOf(attribute + '=')
-					if (start < 0) continue
-					start += attribute.length
-					while ((addLink[start] !== '"') && (addLink[start] !== "'")) {
-						start ++
-					}
-					const quote = addLink[start++]
-					const stop  = addLink.indexOf(quote, start)
-					const link  = this.publicUrl(addLink.substring(start, stop))
-					addLink = addLink.slice(0, start) + link + addLink.slice(stop)
-					if (DEBUG) console.log('check(', link, ')')
-					if (!this.doneLinks.includes(link)) {
-						if (DEBUG) console.log('+ addLink(', addLink, ')')
-						if (DEBUG) console.log('+ doneLink(', link, ')')
-						addLinks.push(addLink)
-						this.doneLinks.push(link)
-					}
-				}
+				const link = addLink.match(/\s(?:href|src)\s*=\s*(["'])(.*?)\1/)?.[2]
+				if (link === undefined || this.doneLinks.includes(link)) continue
+				if (DEBUG) console.log('+ addLink(', addLink, ')')
+				if (DEBUG) console.log('+ doneLink(', link, ')')
+				addLinks.push(addLink)
+				this.doneLinks.push(link)
 			}
 			if (addLinks.length) {
 				const position = this.target.lastIndexOf('>', this.target.indexOf('</head>')) + 1
@@ -450,9 +449,12 @@ export class Template
 				}
 				const expression = this.target + this.source.substring(this.start, this.index - minus)
 				const lastTarget = this.targetStack.pop() as string
-				let   parsed     = await this.parsePath(expression, data)
+				let   parsed     = await this.parsePath(expression, data, true)
 				const html       = (parsed instanceof HtmlResponse) ? parsed.html : parsed
-				if ((typeof html === 'string') && /<[a-z]/i.test(html) && (this.publicUrl('/') !== '/')) {
+				if (parsed instanceof IncludedHtml) {
+					parsed = parsed.html
+				}
+				else if ((typeof html === 'string') && /<[a-z]/i.test(html) && (this.publicUrl('/') !== '/')) {
 					const template = new Template({})
 					template.applicationPath = this.applicationPath
 					template.doExpression    = false
@@ -527,7 +529,9 @@ export class Template
 
 		if (containerFileName) {
 			const data = this.data
-			this.data  = Object.assign({ content: () => this.include(fileName, data) }, this.blockStack[0]?.data)
+			this.data  = Object.assign({
+				content: async () => new IncludedHtml(await this.include(fileName, data))
+			}, this.blockStack[0]?.data)
 			return this.parseFile(normalize(containerFileName))
 		}
 		this.fileName = fileName.substring(fileName.lastIndexOf(sep) + 1)
@@ -544,7 +548,7 @@ export class Template
 		return target
 	}
 
-	async parsePath(expression: string, data: any): Promise<any>
+	async parsePath(expression: string, data: any, preserveIncludes = false): Promise<any>
 	{
 		if (DEBUG) console.log('parsePath', expression)
 		if (expression === '') {
@@ -554,6 +558,12 @@ export class Template
 			((expression[0] === '.') && ((expression[1] === '/') || ((expression[1] === '.') && (expression[2] === '/'))))
 			|| (expression[0] === '/')
 		) {
+			const include = async (path: string, content: any) => {
+				const html = await this.include(this.includePath(path), content)
+				return preserveIncludes
+					? new IncludedHtml(html)
+					: html
+			}
 			let expressionEnd = expression.length - 1
 			if (expression[expressionEnd] === '-') {
 				let blockBack = 1
@@ -563,19 +573,19 @@ export class Template
 					expressionEnd --
 				}
 				const blockStack = this.blockStack
-				return this.include(
-					this.includePath(expression.slice(0, expressionEnd)),
+				return include(
+					expression.slice(0, expressionEnd),
 					blockStack[blockStack.length - blockBack].data
 				)
 			}
 			if (expression[expressionEnd] === ')') {
 				const openPosition = expression.lastIndexOf('(')
-				return this.include(
-					this.includePath(expression.slice(0, openPosition)),
+				return include(
+					expression.slice(0, openPosition),
 					await this.parsePath(expression.slice(openPosition + 1, expression.length - 1), data)
 				)
 			}
-			return this.include(this.includePath(expression), data)
+			return include(expression, data)
 		}
 		let onlyDots = true
 		for (const c of expression) {
