@@ -1,9 +1,10 @@
-import { appDir }      from '@itrocks/app-dir'
-import { Str }         from '@itrocks/rename'
-import { SortedArray } from '@itrocks/sorted-array'
-import { readFile }    from 'node:fs/promises'
-import { normalize }   from 'node:path'
-import { sep }         from 'node:path'
+import { appDir }        from '@itrocks/app-dir'
+import { constructorOf } from '@itrocks/class-type'
+import { Str }           from '@itrocks/rename'
+import { SortedArray }   from '@itrocks/sorted-array'
+import { readFile }      from 'node:fs/promises'
+import { normalize }     from 'node:path'
+import { sep }           from 'node:path'
 
 export type Dependencies = {
 	toString: (value: any) => Promise<string>
@@ -278,7 +279,8 @@ export class Template
 
 	async include(path: string, data: any)
 	{
-		const template: Template = new (Object.getPrototypeOf(this).constructor)(data, this.blockStack[0]?.data)
+		const TemplateType = constructorOf(this)
+		const template     = new TemplateType(data, this.blockStack[0]?.data)
 
 		template.addLinks        = this.addLinks
 		template.applicationPath = this.applicationPath

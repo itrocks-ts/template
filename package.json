@@ -5,6 +5,7 @@
 	},
 	"dependencies": {
 		"@itrocks/app-dir": "latest",
+		"@itrocks/class-type": "latest",
 		"@itrocks/rename": "latest",
 		"@itrocks/sorted-array": "latest"
 	},
@@ -53,5 +54,5 @@
 		"build": "tsc",
 		"test": "npm run build && node --test --test-isolation=none test/*.test.js"
 	},
-	"version": "0.3.1"
+	"version": "0.3.2"
 }
